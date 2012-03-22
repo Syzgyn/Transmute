@@ -1,0 +1,61 @@
+<?php
+function transmute_webform_schema() {
+	$schema['transmute_webform'] = array(
+		'description'	=> 'Stores user webform survey data',
+		'fields' => array(
+			'component_id' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'description'	=> 'Foreign Key: The {webform_component}.cid the data is for',
+			),
+			'user_id' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'description'	=> 'Foreign Key: The {user}.uid the data is for',
+			),
+			'value' => array(
+				'type'	=> 'varchar',
+				'not null' => TRUE,
+				'length' => 64,
+				'default' => '',
+				'description'	=> 'The stored value',
+			),
+		),
+		'unique keys'	=> array('user_answer' => array('user_id', 'component_id')),
+	);
+	
+	$schema['transmute_webform_mail'] = array(
+		'description'	=> 'Stores emails to notify on team volunteer updates.',
+		'fields' => array(
+			'component_id' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'description'	=> 'Foreign Key: The {webform_component}.cid the data is for',
+			),
+			'emails' => array(
+				'type'	=> 'text',
+				'not null'	=> TRUE,
+				'description' => 'Comma separated list of emails to notify',
+			),
+			'last_count' => array(
+				'type'	=> 'int',
+				'not_null' => TRUE,
+				'default' => 0,
+				'description' => 'The number of volunteers signed up for this team as of the last cron run (every 24 hours)',
+			),
+		),
+		'unique keys'	=> array('component_id'),
+	);
+	return $schema;
+}
+
+function transmute_webform_install()
+{
+	drupal_install_schema('transmute_webform');
+} //function transmute_install
+
+function transmute_webform_uninstall()
+{
+	drupal_uninstall_schema('transmute_webform');
+	variable_del('transmute_webform_target_id');
+} //function transmute_uninstall

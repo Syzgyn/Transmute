@@ -1,0 +1,246 @@
+<?php
+function transmute_webform_menu()
+{
+	$items = array();
+	
+	$items['admin/settings/transmute/data/webform'] = array(
+		'type' 				=> MENU_LOCAL_TASK,
+		'title'				=> t('Webform Data'),
+		'page callback'		=> 'drupal_get_form',
+		'page arguments'	=> array('transmute_webform_data_list'),
+		'access arguments'	=> array('export transmute data'),
+		'file'				=> 'transmute_webform.data.inc',
+	);
+	
+	$items['admin/settings/transmute/settings/schedule'] = array(
+		'type'				=> MENU_DEFAULT_LOCAL_TASK,
+		'title'				=> t('Schedule Settings'),
+		'access arguments' 	=> array('administer transmute'),
+	);
+	
+	$items['admin/settings/transmute/settings/webform'] = array(
+		'type'				=> MENU_LOCAL_TASK,
+		'title'				=> t('Webform Settings'),
+		'access arguments' 	=> array('administer transmute'),
+		'page callback'		=> 'drupal_get_form',
+		'page arguments'	=> array('transmute_webform_admin_settings'),
+		'access arguments' 	=> array('administer transmute'),
+		'file'				=> 'transmute_webform.admin.inc',
+		'weight'			=> 2,
+	);
+	
+	return $items;
+}
+
+function transmute_webform_form_alter(&$form, &$form_state, $form_id)
+{
+	global $user;
+	$target_form_id = variable_get('transmute_webform_target_id', NULL);
+	$target_node_id = variable_get('transmute_webform_target_node_id', NULL);
+	
+	//Make sure our target is set and we're in the right form
+	if(!isset($target_form_id) || !isset($target_node_id) || $form_id != $target_form_id)
+		return;
+		
+	$form['comment'] = array(
+		'#value' => "<!-- Webform hacking and custom backend done by a custom module written for Alchemy LLC.\r\n".
+		"Contact Patrick Murphy at pmurphy@alchemyfestival.com for more info.  Thanks to Flipside for the inspiration! -->\r\n"
+	);
+		
+	$components = array();
+	$fieldsets	= array();
+	
+	$result = db_query('SELECT component_id, value FROM {transmute_webform} WHERE user_id = %d', $user->uid);
+	
+	//Get the user's data, combine it with our component list
+	while($user_input = db_fetch_array($result))
+	{
+		$components[$user_input['component_id']] = array(
+			'value' => check_plain($user_input['value']), 
+			'key' => $form['#node']->webform['components'][$user_input['component_id']]['form_key']
+		);
+	}
+	
+	$final_data = array();
+	
+	//Switch the keys and component names for easier traversal through the form
+	foreach($components as $component_id => $v)
+	{
+		$final_data[$v['key']] = array('value' => $v['value'], 'component_id' => $component_id);
+	}
+	
+	//Traverse through the form, and each fieldset, setting default values if we match with our user's data	
+	_transmute_webform_recursive_alter(&$form['submitted'], $final_data);
+	
+	
+	//Change the submit and redirect so the webform module doesn't do it's thing
+	//Instead the data gets put into our table
+	$form['#submit'][1] = 'transmute_webform_submit';
+	
+	$redirect = array_pop(arg()) == 'redirect' ? TRUE : FALSE; //get the path components, check if the last one = redirect
+	
+	$forward = variable_get('transmute_webform_ticket_forwarding', array());
+	if($redirect && $forward['enabled'])
+	{
+		$form['#redirect'] = check_url($forward['url']);
+		if($forward['passthrough'])
+		{
+			$form['actions']['cancel'] = array('#value' => '<br><br><a href="' . check_url($forward['url']) . '">' . check_plain($forward['text']) . '</a>', '#weight' => 100);
+		}
+	}
+} //function transmute_webform_form_alter
+
+function _transmute_webform_recursive_alter(&$form, $data)
+{
+	foreach($form as $k => $v)
+	{
+		if(is_array($v) && array_key_exists('#type', $v))
+		{
+			if($v['#type'] == 'fieldset')
+			{
+				_transmute_webform_recursive_alter(&$form[$k], $data);
+			}
+			else
+			{
+				foreach($data as $name =>$user_data)
+				{
+					if($k == $name)
+					{
+						if($v['#type'] == 'textfield')
+							$form[$k]['#default_value'] = $user_data['value'];
+						elseif($v['#type'] == 'checkboxes')
+							$form[$k]['#default_value'] = array($user_data['value']);
+						break;
+					}
+				}
+			}
+		}
+	}                                         
+} //function _transmute_webform_recursive_alter
+
+function transmute_webform_submit($form, &$form_state)
+{
+	global $user;
+	$profile = variable_get('transmute_webform_profile_fields', array());
+	$profile_array = array();
+	$save_array = FALSE;
+	
+	foreach($form_state['values']['submitted']  as $k => $v)
+	{
+		if($v == NULL)
+		{
+			db_query('DELETE FROM {transmute_webform} WHERE user_id = %d AND component_id = %d', $user->uid, $k);
+		}
+		else
+		{
+			if(isset($profile['name']) && $k == $profile['name']['id'])
+			{
+				$profile_array[$profile['name']['name']] = check_plain($v);
+				$save_array = TRUE;
+			}
+			elseif(isset($profile['skills']) && $k == $profile['skills']['id'])
+			{
+				$profile_array[$profile['skills']['name']] = check_plain($v);
+				$save_array = TRUE;
+			}
+			else
+			{
+				if(is_array($v))
+				{
+					$value = $v[0];
+				}
+				else
+				{
+					$value = $v;
+				}
+				
+				db_query('INSERT INTO {transmute_webform} (user_id, component_id, value) '.
+					'VALUES (%d, %d, "%s") '.
+					'ON DUPLICATE KEY UPDATE value = "%s"',
+					$user->uid,
+					$k,
+					$value,
+					$value
+				);
+			}
+		}
+	}
+	
+	if($save_array)
+	{
+		profile_save_profile($profile_array, $user, $profile['category']);
+	}
+	
+	drupal_set_message(t('Your volunteer profile has been updated.  Thanks!'));
+} //function transmute_webform_submit
+
+function transmute_webform_webform_component_delete($component)
+{
+	db_query('DELETE FROM {transmute_webform} WHERE component_id = %d', $component['cid']);
+	db_query('DELETE FROM {transmute_webform_mail} WHERE component_id = %d', $component['cid']);
+} //function transmute_webform_webform_component_delete
+
+function transmute_webform_cron()
+{
+	$target_node_id = variable_get('transmute_webform_target_node_id', NULL);
+	if(!isset($target_node_id))
+		return;
+	
+	$last_run = variable_get('transmute_webform_cron_last_run', 0);
+	
+	if(time() - $last_run > 60 * 60 * 23.5)	//using 23.5 instead of 24 to account for small second shifts in cron running not throwing us off.
+	{
+		variable_set('transmute_webform_cron_last_run', time());
+		
+		$result = db_query('SELECT m.emails, m.last_count, m.component_id, c.name, COUNT(w.user_id) AS current_count ' .
+			'FROM {transmute_webform_mail} m ' .
+			'LEFT JOIN {transmute_webform} w ON m.component_id = w.component_id ' .
+			'LEFT JOIN {webform_component} c ON m.component_id = c.cid ' .
+			'WHERE c.nid = %d '.
+			'GROUP BY m.component_id',
+			$target_node_id
+		);
+		
+		while($data = db_fetch_object($result))
+		{
+			if($data->current_count > $data->last_count)
+			{
+				_transmute_webform_mail($data->emails, $data->name, $data->current_count - $data->last_count);
+			}
+			
+			db_query('UPDATE {transmute_webform_mail} SET last_count = %d WHERE component_id = %d', $data->current_count, $data->component_id);
+		}
+	}
+} //function transmute_webform_cron
+
+function _transmute_webform_plural($count, $singular, $plural = 's')
+{
+	if ($plural == 's')
+	{
+		$plural = $singular . $plural;
+	}
+	return ($count == 1 ? $singular : $plural);
+}
+
+function _transmute_webform_mail($emails, $name, $new_count)
+{
+	global $base_url;
+	$addresses = explode(',', $emails);
+	$subject = sprintf('Euphoria: You have %d new %s!', $new_count, _transmute_webform_plural($new_count, 'volunteer'));
+	$headers = 'From: Euphoria <admin@euphoriaburn.com>' . "\r\n";
+	
+	foreach($addresses as $a)
+	{
+		$formatted_address = filter_var(trim($a), FILTER_VALIDATE_EMAIL);
+		if(!$formatted_address)
+			continue;
+			
+		$message = 
+$new_count . " new " . _transmute_webform_plural($new_count, 'person', 'people') . " have expressed interest in Team $name for Euphoria.
+
+Go to $base_url/admin/settings/transmute/data/webform to view a list of your potential volunteers.
+If you do not have access to the page, please contact the internet team at internet@euphoriaburn.com with your Euphoria user name and associated email address.";
+		
+		mail($formatted_address, $subject, $message, $headers);
+	}
+} //function _transmute_webform_mail

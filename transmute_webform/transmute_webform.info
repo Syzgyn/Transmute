@@ -1,0 +1,6 @@
+name = Transmute Webform
+description = Custom webform handler to go with Transmute
+core = 6.x
+package = Volunteer
+dependencies[] = webform
+dependencies[] = transmute
