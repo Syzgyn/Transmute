@@ -20,6 +20,12 @@ function transmute_webform_schema() {
 				'default' => '',
 				'description'	=> 'The stored value',
 			),
+			'timestamp' => array(
+				'type'	=> 'datetime',
+				'not null' => TRUE,
+				'default' => 0,
+				'description'	=> 'Date and time that the team was selected',
+			),
 		),
 		'unique keys'	=> array('user_answer' => array('user_id', 'component_id')),
 	);
@@ -47,7 +53,23 @@ function transmute_webform_schema() {
 		'unique keys'	=> array('component_id'),
 	);
 	return $schema;
-}
+} //function transmute_webform_schema
+
+/**
+* Add timestamp field to {transmute_webform} table.
+*/
+function transmute_webform_update_6001()
+{
+	$ret = array();
+	//Add shift title field
+	db_add_field($ret, 'transmute_webform', 'timestamp', array(
+		'type'	=> 'datetime',
+		'not null' => TRUE,
+		'default' => 0,
+		'description'	=> 'Date and time that the team was selected'
+	));
+	return $ret;
+} //function transmute_webform_update_6001
 
 function transmute_webform_install()
 {

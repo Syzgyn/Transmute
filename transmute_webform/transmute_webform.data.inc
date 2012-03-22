@@ -121,7 +121,7 @@ function transmute_webform_data_list(&$form_state)
 				$volunteers = _transmute_webform_get_volunteers($team_id);
 				
 				$output = t('<hr/><h3>%team</h3>', array('%team' => $volunteers['name']));
-				$headers = array(t('User'), t('Name'), t('Email'), t('Skills'));
+				$headers = array(t('User'), t('Name'), t('Email'), t('Signup date'));//, t('Skills'));
 				$output .= theme('table', $headers, $volunteers['data']);
 				
 				$form['data']['#value'] .= $output;
@@ -132,7 +132,7 @@ function transmute_webform_data_list(&$form_state)
 			$volunteers = _transmute_webform_get_volunteers($view_teams);
 			
 			$output = t('<hr/><h3>%team</h3>', array('%team' => $volunteers['name']));
-			$headers = array(t('User'), t('Name'), t('Email'), t('Teams'), t('Skills'));
+			$headers = array(t('User'), t('Name'), t('Email'), t('Signup date'), t('Teams'));//, t('Skills'));
 			$output .= theme('table', $headers, $volunteers['data']);
 			
 			$form['data']['#value'] .= $output;
@@ -181,13 +181,16 @@ function _transmute_webform_get_volunteers($component_id)
 	//Have to use a separate array for the query input, because we have to pass either all ints, or one array.
 	array_push($query_vars, variable_get('transmute_webform_target_node_id', 0));
 	
-	$result = db_query('SELECT u.uid, GROUP_CONCAT(wc.name SEPARATOR \', \') AS teams ' . 
+	$result = db_query('SELECT u.uid, '.
+			'tw.timestamp , '.
+			'GROUP_CONCAT(wc.name SEPARATOR \', \') AS teams ' . 
 		'FROM {transmute_webform} tw ' . 
-		'LEFT JOIN {users} u ON tw.user_id = u.uid ' .
-		'LEFT JOIN {webform_component} wc ON wc.cid = tw.component_id ' .
+			'LEFT JOIN {users} u ON tw.user_id = u.uid ' .
+			'LEFT JOIN {webform_component} wc ON wc.cid = tw.component_id ' .
 		'WHERE tw.component_id ' . ($is_multiple ? "IN ($mult_component_id) " : '= %d ') .
-		'AND wc.nid = %d '.
-		'GROUP BY u.uid',
+			'AND wc.nid = %d '.
+		'GROUP BY u.uid '.
+		'ORDER BY tw.timestamp DESC ',
 		$query_vars
 	);
 	
@@ -207,8 +210,9 @@ function _transmute_webform_get_volunteers($component_id)
 		//Get a user object for username, email, and real name
 		$user = user_load($data['uid']);
 		profile_load_profile($user);
+		$date = date('M j, Y g:ia', strtotime($data['timestamp']));
 		
-		$a = array(check_plain($user->name), check_plain($user->{profile_name}), check_plain($user->mail));
+		$a = array(check_plain($user->name), check_plain($user->{profile_name}), check_plain($user->mail), $date);
 		
 		if($is_multiple)
 		{
@@ -219,7 +223,7 @@ function _transmute_webform_get_volunteers($component_id)
 			$output['name'] = check_plain($data['teams']);
 		}
 		
-		array_push($a, check_plain($user->{profile_skills}));
+		//array_push($a, check_plain($user->{profile_skills}));
 		
 		$output['data'][] = $a;
 		$count++;
@@ -262,7 +266,7 @@ function _transmute_webform_download_csv($form_state, $groups)
 		{
 			$x = _transmute_webform_get_volunteers($team_id);
 			$output[] = array($x['name']);
-			$output[] = array('User', 'Name', 'Email');
+			$output[] = array('User', 'Name', 'Email', 'Signup date');
 			$output = array_merge($output, $x['data']);
 			$output[] = array('');
 		}

@@ -154,12 +154,13 @@ function transmute_webform_submit($form, &$form_state)
 					$value = $v;
 				}
 				
-				db_query('INSERT INTO {transmute_webform} (user_id, component_id, value) '.
-					'VALUES (%d, %d, "%s") '.
+				db_query('INSERT INTO {transmute_webform} (user_id, component_id, value, timestamp) '.
+					'VALUES (%d, %d, "%s", "%s") '.
 					'ON DUPLICATE KEY UPDATE value = "%s"',
 					$user->uid,
 					$k,
 					$value,
+					date('Y-m-d H:i:s'),
 					$value
 				);
 			}
