@@ -1,0 +1,5 @@
+name = Transmute
+description = Module to manage volunteer efforts for Alchemy LLC events
+core = 6.x
+package = Volunteer
+dependencies[] = profile

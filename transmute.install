@@ -1,0 +1,103 @@
+<?php
+
+/**
+ * Implementation of hook_schema().
+ */
+function transmute_schema() {
+	$schema['transmute_teams'] = array(
+		'description'	=> 'Stores team information',
+		'fields' => array(
+			'team_id' => array(
+				'type'	=> 'serial',
+				'not null' => TRUE,
+				'description'	=> 'Primary key: Auto-incrementing id for each team',
+			),
+			'name' => array(
+				'type'	=> 'varchar',
+				'not null' => TRUE,
+				'length' => 64,
+				'default' => '',
+				'description'	=> 'Name for the theme',
+			),
+			'description' => array(
+				'type'	=> 'text',
+				'not null' => TRUE,
+				'default' => '',
+				'description'	=> 'Short blurb for the team',
+			),
+		),
+		'primary key'	=> array('team_id'),
+		'unique keys'	=> array('name' => array('name')),
+	); //teams
+	
+	$schema['transmute_shifts'] = array(
+		'description'	=> 'Stores shift information, multiple for each team',
+		'fields' => array(
+			'shift_id' => array(
+				'type'	=> 'serial',
+				'not null' => TRUE,
+				'description'	=> 'Primary key: Auto-incrementing id for each shift',
+			),
+			'team_id' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'default' => 0,
+				'description'	=> 'Foreign Key: The {transmute_teams}.team_id the shift is assigned to',
+			),
+			'start_date' => array(
+				'type'	=> 'datetime',
+				'not null' => TRUE,
+				'default' => 0,
+				'description'	=> 'Date and time that the shift starts',
+			),
+			'length' => array(
+				'type'	=> 'float',
+				'not null' => TRUE,
+				'default' => 3.0,
+				'description'	=> 'Length of the shift in hours',
+			),
+			'participant_num' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'default' => 3,
+				'description'	=> 'Number of participants needed for the shift',
+			),
+		),
+		'primary key'	=> array('shift_id'),
+		'unique keys'	=> array('team_start_length' => array('team_id', 'start_date', 'length')),
+	); //shifts
+	
+	$schema['transmute_participants'] = array(
+		'description'	=> 'Map of Users to shifts, from 0 to shift.size for each shift',
+		'fields' => array(
+			'user_id' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'default' => 0,
+				'description'	=> 'Foreign Key: The {user}.uid of the person signed up for the shift',
+			),
+			'shift_id' => array(
+				'type'	=> 'int',
+				'not null' => TRUE,
+				'default' => 0,
+				'description'	=> 'Foreign Key: The {transmute_shifts}.shift_id of the shift',
+			),
+		),
+		'unique keys'	=> array('user_shift' => array('user_id', 'shift_id')),
+	); //participants
+	
+	return $schema;
+}
+
+function transmute_install()
+{
+	drupal_install_schema('transmute');
+} //function transmute_install
+
+function transmute_uninstall()
+{
+	drupal_uninstall_schema('transmute');
+	variable_del('transmute_default_shift_length');
+	variable_del('transmute_default_shift_participants');
+} //function transmute_uninstall
+

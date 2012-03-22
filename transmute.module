@@ -1,0 +1,293 @@
+<?php
+/**
+ * Display help and module information
+ * @param path which path of the site we're displaying help
+ * @param arg array that holds the current path as would be returned from arg() function
+ * @return help text for the path
+ */
+function transmute_help($path, $arg)
+{
+	$output = '';
+	switch($path)
+	{
+		case "admin/help#transmute":
+			$output = '<p>' . t("Help for Transmute") . '</p>';
+			break;
+	}
+	
+	return $output;
+} //function transmute_help
+
+function transmute_theme()
+{
+	return array(
+		'transmute_admin_list' => array(
+			'arguments'	=> array('form' => NULL),
+			'file'		=> 'transmute.admin.inc',
+		),
+		'transmute_admin_shift_list' => array(
+			'arguments'	=> array('form' => NULL),
+			'file'		=> 'transmute.admin.inc',
+		),
+		'transmute_volunteer_page' => array(
+			'arguments'	=> array('form' => NULL),
+			'file'		=> 'transmute.user.inc',
+		),
+		'transmute_volunteer_shift_page' => array(
+			'arguments'	=> array('form' => NULL),
+			'file'		=> 'transmute.user.inc',
+		),
+		
+	);
+} //function transmute_theme
+
+/**
+* Valid permissions for this module
+* @return array An array of valid permissions for the transmute module
+*/
+function transmute_perm()
+{
+	return array('access transmute content', 'export transmute data', 'administer transmute');
+} // function transmute_perm()
+
+function transmute_menu()
+{
+	$items = array();
+	
+	$items['volunteer'] = array(
+		'type' 				=> MENU_NORMAL_ITEM,
+		'title' 			=> t('Volunteer'),
+		'description' 		=> t('Help volunteer!'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_volunteer_page'),
+		'access arguments' 	=> array('access transmute content'),
+		'file'				=> 'transmute.user.inc',
+	);
+	
+	$items['volunteer/%transmute_team'] = array(
+		'type' 				=> MENU_CALLBACK,
+		'title' 			=> t('Volunteer'),
+		'description' 		=> t('Help volunteer!'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_volunteer_shift_page', 1),
+		'access arguments' 	=> array('access transmute content'),
+		'file'				=> 'transmute.user.inc',
+	);
+	
+	//------------------------------------------------------------------------------------
+	//Admin Menu
+	//------------------------------------------------------------------------------------
+	$items['admin/settings/transmute'] = array(
+		'type' 				=> MENU_NORMAL_ITEM,
+		'title' 			=> t('Transmute'),
+		'description' 		=> t('Description of your Transmute settings page'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_admin_list'),
+		'access arguments' 	=> array('administer transmute'),
+		'file'				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/list'] = array(
+		'type'				=> MENU_DEFAULT_LOCAL_TASK,
+		'title'				=> t('List'),
+		'access arguments' 	=> array('administer transmute'),
+	);
+	
+	$items['admin/settings/transmute/add'] = array(
+		'type'				=> MENU_LOCAL_TASK,
+		'title'				=> t('Add a team'),
+		'page callback'		=> 'drupal_get_form',
+		'page arguments'	=> array('transmute_admin_team'),
+		'access arguments' 	=> array('administer transmute'),
+		'file'				=> 'transmute.admin.inc',
+		'weight'			=> 1,
+	);
+	
+	$items['admin/settings/transmute/settings'] = array(
+		'type'				=> MENU_LOCAL_TASK,
+		'title'				=> t('Settings'),
+		'page callback'		=> 'drupal_get_form',
+		'page arguments'	=> array('transmute_admin_settings'),
+		'access arguments' 	=> array('administer transmute'),
+		'file'				=> 'transmute.admin.inc',
+		'weight'			=> 2,
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/delete'] = array(
+		'type'				=> MENU_CALLBACK,
+		'title' 			=> t('Delete input format'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments'	=> array('transmute_delete_confirm', 3, 'team'),
+		'access arguments' 	=> array('administer transmute'),
+		'file'				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/%transmute_team'] = array(
+		'type' 				=> MENU_NORMAL_ITEM,
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_admin_team', 3),
+		'access arguments' 	=> array('administer transmute'),
+		'file' 				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/edit'] = array(
+		'type' 				=> MENU_DEFAULT_LOCAL_TASK,
+		'title' 			=> t('Edit'),
+		'access arguments' 	=> array('administer transmute'),
+		'file' 				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/shifts'] = array(
+		'type' 				=> MENU_LOCAL_TASK,
+		'title'				=> t('Shifts'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_admin_shift_list', 3),
+		'access arguments' 	=> array('administer transmute'),
+		'file' 				=> 'transmute.admin.inc',
+		'weight'			=> 2,
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/shifts/%'] = array(
+		'type' 				=> MENU_CALLBACK,
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_admin_shift', 3),
+		'access arguments' 	=> array('administer transmute'),
+		'load arguments'	=> array(5),
+		'file' 				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/shifts/%/edit'] = array(
+		'type'				=> MENU_DEFAULT_LOCAL_TASK,
+		'title'				=> t('Edit'),
+		'access arguments' 	=> array('administer transmute'),
+		'file' 				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/shifts/add'] = array(
+		'type' 				=> MENU_CALLBACK,
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_admin_shift', 3),
+		'access arguments' 	=> array('administer transmute'),
+		'file' 				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/%transmute_team/shifts/%/delete'] = array(
+		'type' 				=> MENU_CALLBACK,
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('transmute_delete_confirm', 3, 'shift'),
+		'access arguments' 	=> array('administer transmute'),
+		'load arguments'	=> array(5),
+		'file' 				=> 'transmute.admin.inc',
+	);
+	
+	$items['admin/settings/transmute/data'] = array(
+		'type' 				=> MENU_LOCAL_TASK,
+		'title'				=> t('View Data'),
+		'page callback'		=> 'drupal_get_form',
+		'page arguments'	=> array('transmute_data_list'),
+		'access arguments'	=> array('export transmute data'),
+		'file'				=> 'transmute.data.inc',
+		'weight'			=> 3,
+	);
+	
+	$items['admin/settings/transmute/data/view'] = array(
+		'type'				=> MENU_DEFAULT_LOCAL_TASK,
+		'title'				=> t('Schedule Data'),
+		'access arguments'	=> array('export transmute data'),
+		'file'				=> 'transmute.data.inc',
+	);
+	
+	return $items;
+} //function transmute_menu
+
+//Wildcard function called for menu items
+function transmute_team_load($team_id, $shift_id = NULL)
+{
+	$result = db_query('SELECT * FROM {transmute_teams} WHERE team_id = %d', $team_id);
+	if($team = db_fetch_array($result))
+	{
+		if(!isset($shift_id))
+			return $team;
+		else
+		{
+			$result = db_query('SELECT * FROM {transmute_shifts} WHERE team_id = %d AND shift_id = %d', $team_id, $shift_id);
+			if($shift = db_fetch_array($result))
+				return $shift;
+			else
+				drupal_not_found();
+		}
+	}
+	else
+		drupal_not_found();
+} //function transmute_team_load
+
+
+function transmute_block($op = 'list', $delta = 0)
+{
+	global $user;
+	
+	$block = array();
+	
+	switch($op)
+	{
+		case 'list':
+			$block[0] = array(
+				'info' 			=> t('Volunteer user data'),
+				'cache'			=> BLOCK_CACHE_PER_PAGE,
+				'status'		=> 1,
+				'region'		=> 'content_bottom',
+				'visibility'	=> 2,
+				'pages'			=> '<?php
+										global $user; 
+										return (arg(0) == \'user\' && $user->uid == arg(1) && arg(2) == \'\')
+									?>',
+			);
+			break;
+		case 'view':
+			$result = db_query("SELECT ".
+					"ts.team_id AS team_id, ".
+					"ts.shift_id AS shift_id, ".
+					"start_date, ".
+					"length, ".
+					"name ".
+				"FROM ".
+					"{transmute_shifts} ts ".
+				"LEFT JOIN {transmute_participants} tp ".
+					"ON ts.shift_id = tp.shift_id ".
+				"LEFT JOIN {transmute_teams} tt ".
+					"ON ts.team_id = tt.team_id ".
+				"WHERE tp.user_id = %d ".
+				"ORDER BY start_date ASC",
+				$user->uid 
+			);
+			
+			while($shift = db_fetch_array($result))
+			{
+				$start_time = date('g:ia', strtotime($shift['start_date']));
+				$end_time = date('g:ia', strtotime($shift['start_date']) + (60 * 60 * $shift['length']));
+				//$time_range = $start_time . ' - ' . $end_time;
+				$content['name'] = array('#value' => $shift['name']);
+				$content['date'] = array('#value' => date('D, M j', strtotime($shift['start_date'])));
+				$content['time'] = array('#value' => $start_time . ' - ' . $end_time);
+				$content['length'] = array('#value' => $shift['length']);
+				$content['cancel'] = array('#value' => l(t('Cancel'), 'volunteer/' . $shift['team_id']));
+				
+				$rows[] = array(
+					drupal_render($content['name']),
+					drupal_render($content['date']),
+					drupal_render($content['time']),
+					drupal_render($content['length']),
+					drupal_render($content['cancel']),
+				);
+			}
+			if(!empty($rows))
+			{
+				$header = array(t('Team'), t('Day'), t('Time'), t('Length'), t('Cancel'));
+				$block['content'] = theme('table', $header, $rows);
+				$block['subject'] = t('Volunteer Info');
+			}
+			
+			break;
+	}
+	return $block;
+} //function transmute_block
