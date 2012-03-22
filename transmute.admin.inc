@@ -68,10 +68,12 @@ function transmute_admin_team($form_state, $team = NULL)
 	$form['desc'] = array(
 		'#type'				=> 'textarea',
 		'#title'			=> t('Description'),
-		'#default_value'	=> check_plain($team['description']),
+		'#default_value'	=> check_markup($team['description']),
 		'#description'		=> t('Describe what volunteering for this team involves.'),
 		'#required'			=> TRUE,
 	);
+	
+	$form['format'] = filter_form();
 	
 	$form['submit'] = array(
 		'#type' 			=> 'submit', 
@@ -194,12 +196,13 @@ function transmute_admin_shift_list($form_state, $team = NULL)
 	$query_result = db_query("SELECT * FROM {transmute_shifts} WHERE team_id = %d ORDER BY start_date ASC", $team['team_id']);
 	
 	while ($result = db_fetch_object($query_result))
-	{ 
+	{
+		$form[$result->shift_id]['title'] = array('#value' => check_plain($result->title));
 		$form[$result->shift_id]['start_date'] = array('#value' => date('D, M j', strtotime($result->start_date)));
 		$form[$result->shift_id]['start_time'] = array('#value' => date('g:ia', strtotime($result->start_date)));
 		$form[$result->shift_id]['length'] = array('#value' => $result->length);
 		$form[$result->shift_id]['participant_num'] = array('#value' => $result->participant_num);
-		$form[$result->shift_id]['configure'] = array('#value' => l(t('Configure'), 'admin/settings/transmute/'. $result->team_id . '/shifts/' . $result->shift_id));
+		$form[$result->shift_id]['configure'] = array('#value' => l(t('Edit Shift'), 'admin/settings/transmute/'. $result->team_id . '/shifts/' . $result->shift_id));
 		$form[$result->shift_id]['delete'] = array('#value' => l(t('Delete'), 'admin/settings/transmute/'. $result->team_id . '/shifts/' . $result->shift_id . '/delete'));
 	}
 	
@@ -212,7 +215,7 @@ function transmute_admin_shift_list($form_state, $team = NULL)
 	);
 	
 	return $form;
-} //function transmute_admin_shift
+} //function transmute_admin_shift_list
 
 function theme_transmute_admin_shift_list($form)
  {
@@ -228,6 +231,7 @@ function theme_transmute_admin_shift_list($form)
 		$rows[] = array(
 			drupal_render($row['start_date']),
 			drupal_render($row['start_time']),
+			drupal_render($row['title']),
 			drupal_render($row['length']),
 			drupal_render($row['participant_num']),
 			drupal_render($row['configure']),
@@ -235,7 +239,7 @@ function theme_transmute_admin_shift_list($form)
 		);
 		unset($form[$name]);
 	}
-	$header = array(t('Start Date'), t('Start Time'), t('Length'), t('# Participants'), array('data' => t('Operations'), 'colspan' => 2));
+	$header = array(t('Start Date'), t('Start Time'), t('Title'), t('Length'), t('# Participants'), array('data' => t('Operations'), 'colspan' => 2));
 	$output = theme('table', $header, $rows);
 	$output .= drupal_render($form);
 
@@ -274,6 +278,7 @@ function transmute_admin_shift($form_state, $shift)
 	}
 	else	//New shift creation
 	{
+		$shift['title'] = "";
 		$shift['start_date'] = date('Y-m-d H:i:s');
 		$shift['length'] = variable_get('transmute_default_shift_length', 3);
 		$shift['participant_num'] = variable_get('transmute_default_shift_participants', 3);
@@ -288,6 +293,16 @@ function transmute_admin_shift($form_state, $shift)
 		'#required'			=> TRUE,
 	);
 	*/
+	$form['title'] = array(
+		'#type' 			=> 'textfield',
+		'#title' 			=> t('Shift Title'),
+		'#default_value'	=> check_plain($shift['title']),
+		'#description' 		=> t('Optional custom title for the shift.'),
+		'#required' 		=> FALSE,
+		'#size'				=> 32,
+		'#max_length'		=> 32,
+	);
+	
 	$form['start_date'] = array(
 		'#type'				=> 'select',
 		'#title'			=> t('Start Date'),
@@ -357,6 +372,7 @@ function transmute_admin_shift_validate($form, &$form_state)
 
 function transmute_admin_shift_submit($form, &$form_state)
 {
+	$title = $form_state['values']['title'];
 	$shift_id = $form_state['values']['shift_id'];
 	$date = $form_state['values']['start_date'];
 	$time = $form_state['values']['start_time'];
@@ -366,10 +382,12 @@ function transmute_admin_shift_submit($form, &$form_state)
 	if(isset($shift_id)) //Existing shift getting updated
 	{
 		db_query("UPDATE {transmute_shifts} SET ".
+				"title = '%s', ".
 				"start_date = '%s', ".
 				"length = %d, ".
 				"participant_num = %d ".
 				"WHERE shift_id = %d",
+				$title,
 				$final_date, 
 				$form_state['values']['length'], 
 				$form_state['values']['participant_num'], 
@@ -378,8 +396,9 @@ function transmute_admin_shift_submit($form, &$form_state)
 	}
 	else //New team getting created
 	{
-		db_query("INSERT INTO {transmute_shifts} (team_id, start_date, length, participant_num) VALUES (%d, '%s', %d, %d)",
+		db_query("INSERT INTO {transmute_shifts} (team_id, title, start_date, length, participant_num) VALUES (%d, '%s', '%s', %d, %d)",
 			$form_state['values']['team_id'], 
+			$title,
 			$final_date, 
 			$form_state['values']['length'], 
 			$form_state['values']['participant_num']);
@@ -433,7 +452,7 @@ function transmute_delete_confirm(&$form_state, $id, $type)
 		t('Delete'),
 		t('Cancel')
 	);
-}
+} //function transmute_delete_confirm
 
 function transmute_delete_confirm_submit($form, &$form_state)
 {
@@ -471,4 +490,4 @@ function transmute_delete_confirm_submit($form, &$form_state)
 	}
 
 	$form_state['redirect'] = $redirect;
-}
+} //function transmute_delete_confirm_submit

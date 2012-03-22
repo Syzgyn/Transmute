@@ -291,3 +291,10 @@ function transmute_block($op = 'list', $delta = 0)
 	}
 	return $block;
 } //function transmute_block
+
+function transmute_plural($num, $word, $plural='')
+{
+	if($plural == '')
+		$plural = $word . 's';
+	return $num == 1 ? $word : $plural;
+} //function transmute_plural

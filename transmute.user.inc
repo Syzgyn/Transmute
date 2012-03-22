@@ -13,9 +13,9 @@ function transmute_volunteer_page()
 		$full_shifts = db_fetch_object($user_result)->full_shifts;
 		$total_shifts = isset($result->total_shifts) ? $result->total_shifts : 0;
 		
-		$form[$result->team_id]['name'] = array('#value' => check_plain($result->name));
+		$form[$result->team_id]['name'] = array('#value' => l(check_plain($result->name), 'volunteer/'. $result->team_id));
 		$form[$result->team_id]['shifts'] = array('#value' => t(($total_shifts - $full_shifts) . '/' . $total_shifts . ' shifts open'));
-		$form[$result->team_id]['sign_up'] = array('#value' => l(t('Sign Up'), 'volunteer/'. $result->team_id));
+		//$form[$result->team_id]['sign_up'] = array('#value' => l(t('View Schedule'), 'volunteer/'. $result->team_id . '/schedule'));
 	}
 	
 	return $form;
@@ -35,11 +35,11 @@ function theme_transmute_volunteer_page($form)
 		$rows[] = array(
 			drupal_render($row['name']),
 			drupal_render($row['shifts']),
-			drupal_render($row['sign_up'])
+			//drupal_render($row['sign_up'])
 		);
 		unset($form[$name]);
 	}
-	$header = array(t('Team'), t('Shifts'), t('Sign Up'));
+	$header = array(t('Team'), array('data' => t('Shifts')));//, 'colspan' => 2));
 	$output = "\r\n<!-- Custom volunteer interface written for Alchemy LLC.\r\n".
 		"Contact Patrick Murphy at pmurphy@alchemyfestival.com for more info.  Thanks to Transformus for the inspiration! -->\r\n";
 	$output .= theme('table', $header, $rows);
@@ -59,6 +59,7 @@ function transmute_volunteer_shift_page($form_state, $team)
 	
 	drupal_set_title(t($team['name'] . ' Shifts'));
 	$query_result = db_query("SELECT ".
+			"ts.title AS title, ".
 			"ts.shift_id AS shift_id, ".
 			"start_date, ".
 			"length, ".
@@ -96,9 +97,10 @@ function transmute_volunteer_shift_page($form_state, $team)
 		$form[$result->shift_id]['time_range_hidden'] = array('#type' => 'hidden', '#value' => check_plain($start_time . ' - ' . $end_time));
 		$form[$result->shift_id]['name_hidden']		  = array('#type' => 'hidden', '#value' => check_plain($result->name));
 		
+		$form[$result->shift_id]['title']		  = array('#value' => check_plain($result->title));		
 		$form[$result->shift_id]['start_date'] = array('#value' => date('D, M j', strtotime($result->start_date)));
-		$form[$result->shift_id]['time_range'] = array('#value' => check_plain($start_time . ' - ' . $end_time));
-		$form[$result->shift_id]['length'] = array('#value' => check_plain($result->length));
+		$form[$result->shift_id]['time_range'] = array('#value' => check_plain($start_time . ' - ' . $end_time . ' (' . $result->length . ' ' . transmute_plural($result->length, 'hour') . ')'));
+		//$form[$result->shift_id]['length'] = array('#value' => check_plain($result->length));
 		$form[$result->shift_id]['shift_info'] = array('#value' => check_plain(($result->participant_num-$result->num_signed_up) . '/' . $result->participant_num));
 		$form[$result->shift_id]['sign_up'] = array(
 			'#type' => 'submit', 
@@ -130,8 +132,9 @@ function theme_transmute_volunteer_shift_page($form)
 		$rows[] = array(
 			drupal_render($row['start_date']),
 			drupal_render($row['time_range']),
+			//drupal_render($row['length']),
+			drupal_render($row['title']),
 			drupal_render($row['shift_info']),
-			drupal_render($row['length']),
 			drupal_render($row['sign_up'])
 		);
 		unset($form[$name]);
@@ -141,7 +144,14 @@ function theme_transmute_volunteer_shift_page($form)
 	$output .= '<p>' . drupal_render($form['description']) . '</p>';
 	$output .= '<h3>' . t('Available Shifts'). '</h3>';
 
-	$header = array(t('Day'), t('Time'), t('Shifts Remaining/Total Shifts'), t('Hours'), t('Sign Up'));
+	$header = array(
+		t('Day'), 
+		t('Time'), 
+		//t('<abbr title="Shift length (in hours)">Length</abbr>'),
+		t('Role'), 
+		t('<abbr title="Remaining Shifts/Total Shifts">Rem/Tot</abbr>'), 
+		t('Sign Up')
+	);
 	$output .= theme('table', $header, $rows);
 	$output .= drupal_render($form);
 
