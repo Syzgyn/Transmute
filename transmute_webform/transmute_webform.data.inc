@@ -183,7 +183,7 @@ function _transmute_webform_get_volunteers($component_id)
 	
 	$result = db_query('SELECT u.uid, '.
 			'tw.timestamp , '.
-			'GROUP_CONCAT(wc.name SEPARATOR \', \') AS teams ' . 
+			'GROUP_CONCAT(DISTINCT wc.name SEPARATOR \', \') AS teams ' . 
 		'FROM {transmute_webform} tw ' . 
 			'LEFT JOIN {users} u ON tw.user_id = u.uid ' .
 			'LEFT JOIN {webform_component} wc ON wc.cid = tw.component_id ' .
