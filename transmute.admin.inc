@@ -220,6 +220,8 @@ function transmute_admin_shift_list($form_state, $team = NULL)
 function theme_transmute_admin_shift_list($form)
  {
 	$rows = array();
+	$previous_date = "";
+	$spacer = array('data' => '<hr>', 'colspan' => 7);
 	
 	foreach (element_children($form) as $item)
 	{
@@ -227,6 +229,13 @@ function theme_transmute_admin_shift_list($form)
 			continue;
 	
 		$row = &$form[$item];
+		
+		if($row['start_date']['#value'] != $previous_date)
+		{
+			if($previous_date != "")
+				$rows[] = array($spacer);
+			$previous_date = $row['start_date']['#value'];
+		}
 		
 		$rows[] = array(
 			drupal_render($row['start_date']),
@@ -237,7 +246,7 @@ function theme_transmute_admin_shift_list($form)
 			drupal_render($row['configure']),
 			drupal_render($row['delete'])
 		);
-		unset($form[$name]);
+		unset($form[$item]);
 	}
 	$header = array(t('Start Date'), t('Start Time'), t('Title'), t('Length'), t('# Participants'), array('data' => t('Operations'), 'colspan' => 2));
 	$output = theme('table', $header, $rows);

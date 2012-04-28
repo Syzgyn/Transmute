@@ -121,6 +121,8 @@ function transmute_volunteer_shift_page($form_state, $team)
 function theme_transmute_volunteer_shift_page($form)
 {
 	$rows = array();
+	$previous_date = "";
+	$spacer = array('data' => '<hr>', 'colspan' => 5);
 	
 	foreach (element_children($form) as $item)
 	{
@@ -128,8 +130,16 @@ function theme_transmute_volunteer_shift_page($form)
 			continue;
 	
 		$row = &$form[$item];
+		
+		if($row['start_date']['#value'] != $previous_date)
+		{
+			if($previous_date != "")
+				$rows[] = array($spacer);
+			$previous_date = $row['start_date']['#value'];
+		}
 			
 		$rows[] = array(
+		//$rows[$row['start_date']['#value']][] = array(
 			drupal_render($row['start_date']),
 			drupal_render($row['time_range']),
 			//drupal_render($row['length']),
@@ -137,7 +147,7 @@ function theme_transmute_volunteer_shift_page($form)
 			drupal_render($row['shift_info']),
 			drupal_render($row['sign_up'])
 		);
-		unset($form[$name]);
+		unset($form[$item]);
 	}
 	
 	$output .= '<h3>'. t('Description'). ' </h3>';
@@ -152,6 +162,11 @@ function theme_transmute_volunteer_shift_page($form)
 		t('<abbr title="Remaining Shifts/Total Shifts">Rem/Tot</abbr>'), 
 		t('Sign Up')
 	);
+	/*
+	foreach($rows as $day)
+	{
+		$output .= theme('table', $header, $day);
+	}*/
 	$output .= theme('table', $header, $rows);
 	$output .= drupal_render($form);
 

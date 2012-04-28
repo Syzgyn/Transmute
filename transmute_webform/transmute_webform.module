@@ -77,10 +77,12 @@ function transmute_webform_form_alter(&$form, &$form_state, $form_id)
 	//Instead the data gets put into our table
 	$form['#submit'][1] = 'transmute_webform_submit';
 	
-	$redirect = array_pop(arg()) == 'redirect' ? TRUE : FALSE; //get the path components, check if the last one = redirect
+	//This doesn't work.
+	//$redirect = array_pop(arg()) == 'redirect' ? TRUE : FALSE; //get the path components, check if the last one = redirect
 	
 	$forward = variable_get('transmute_webform_ticket_forwarding', array());
-	if($redirect && $forward['enabled'])
+	//if($redirect && $forward['enabled'])
+	if($forward['enabled'])
 	{
 		$form['#redirect'] = check_url($forward['url']);
 		if($forward['passthrough'])
