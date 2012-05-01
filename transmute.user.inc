@@ -15,6 +15,7 @@ function transmute_volunteer_page()
 		
 		$form[$result->team_id]['name'] = array('#value' => l(check_plain($result->name), 'volunteer/'. $result->team_id));
 		$form[$result->team_id]['shifts'] = array('#value' => t(($total_shifts - $full_shifts) . '/' . $total_shifts . ' shifts open'));
+		$form[$result->team_id]['schedule'] = array('#value' => l(t('View Schedule'), 'volunteer/'. $result->team_id . '/schedule'));
 		//$form[$result->team_id]['sign_up'] = array('#value' => l(t('View Schedule'), 'volunteer/'. $result->team_id . '/schedule'));
 	}
 	
@@ -35,11 +36,11 @@ function theme_transmute_volunteer_page($form)
 		$rows[] = array(
 			drupal_render($row['name']),
 			drupal_render($row['shifts']),
-			//drupal_render($row['sign_up'])
+			drupal_render($row['schedule'])
 		);
 		unset($form[$name]);
 	}
-	$header = array(t('Team'), array('data' => t('Shifts')));//, 'colspan' => 2));
+	$header = array(t('Team'), array('data' => t('Shifts')), t('Schedule'));//, 'colspan' => 2));
 	$output = "\r\n<!-- Custom volunteer interface written for Alchemy LLC.\r\n".
 		"Contact Patrick Murphy at pmurphy@alchemyfestival.com for more info.  Thanks to Transformus for the inspiration! -->\r\n";
 	$output .= theme('table', $header, $rows);
@@ -108,11 +109,21 @@ function transmute_volunteer_shift_page($form_state, $team)
 		);
 		if(isset($result->user_id))
 		{
+			//Already signed up, show cancel button
 			$form[$result->shift_id]['sign_up']['#value'] = t('Cancel');
 			$form[$result->shift_id]['sign_up']['#attributes'] = array('onclick' => 'return confirm("' . t('Are you sure you want to remove yourself from this volunteer shift?') . '");');
 		}
-		else
+		elseif($result->participant_num > $result->num_signed_up)
+		{
+			//Not full, show signup button
 			$form[$result->shift_id]['sign_up']['#value'] = t('Sign Up');
+		}
+		else
+		{
+			//Full, don't show any button
+			$form[$result->shift_id]['sign_up']['#type'] = 'markup';
+			$form[$result->shift_id]['sign_up']['#value'] = 'FULL';
+		}
 	}
 	
 	return $form;
@@ -224,3 +235,187 @@ function transmute_volunteer_shift_page_submit($form, &$form_state)
 	}
 	
 } //function transmute_volunteer_shift_page_submit
+
+function transmute_volunteer_schedule_page($team)
+{
+	//var_dump(func_get_args());
+	$a = array();
+	//return $a;
+	
+	//global $user;
+	
+	if(!isset($team))
+		return drupal_not_found();
+	
+	//$form['description'] = array('#value' => $team['description']);
+	
+	drupal_set_title(t($team['name'] . ' Schedule'));
+	
+	$result = db_query(
+		'SELECT u.uid, ts.start_date, ts.length, tt.name, ts.title '.
+		'FROM {users} u '.
+			'RIGHT JOIN {transmute_participants} tp ON tp.user_id = u.uid '.
+			'RIGHT JOIN {transmute_shifts} ts ON ts.shift_id = tp.shift_id '.
+			'LEFT JOIN {transmute_teams} tt ON tt.team_id = ts.team_id '.
+		'WHERE tt.team_id = %d ' .
+		'ORDER BY ts.start_date ASC',
+		$team['team_id']
+	);
+	/*
+	SELECT u.uid, ts.start_date, ts.length, tt.name, ts.title 
+	FROM users u
+	LEFT JOIN transmute_participants tp ON tp.user_id = u.uid
+	LEFT JOIN transmute_shifts ts ON ts.shift_id = tp.shift_id
+	LEFT JOIN transmute_teams tt ON tt.team_id = ts.team_id
+	WHERE tt.team_id = 2 ORDER BY ts.start_date ASC
+	*/
+	
+	$users_per_day = array();
+	$users_per_shift = array();
+	$users_per_team = array();
+	$schedule = array();
+	//Array format:
+	//Day
+	//	Shift time
+	//		Team Name
+	//			Shift Title
+	//				User
+	while($data = db_fetch_array($result))
+	{
+		//Get a user object for username, email, and real name
+		$user = user_load($data['uid']);
+		profile_load_profile($user);
+		
+		$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
+		$schedule[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['name']][$data['title']][] = array(
+			check_plain($user->name),
+			//check_plain($user->{profile_name}),
+			//check_plain($user->mail),
+		);
+		
+		//These are used to track the number of users per each grouping, since we can't use count() in the middle of the loop of each grouping.
+		  $users_per_day[date('Y-m-d', strtotime($data['start_date']))]++;
+		$users_per_shift[date('Y-m-d', strtotime($data['start_date']))][$shift_label]++;
+		 $users_per_team[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['title']]++;
+	}
+	
+	//These loops add the appropriate number for rowspan for each element to have, working outwards.
+	//var_dump($schedule);
+	$rows = array();
+	foreach($schedule as $day => $shift_array)
+	{
+		$new_day = true;
+		$day_row_span = 0;
+		
+		foreach($shift_array as $shift => $team_array)
+		{
+			$new_shift = true;
+			foreach($team_array as $team => $title_array)
+			{
+				$new_team = true;
+				foreach($title_array as $title => $user_array)
+				{
+					$new_title = true;
+					foreach($user_array as $user)
+					{
+						//Check if we're at the beginning of a new grouping, add the corresponding element to the beginning of the array with the correct rowspan value
+						if($new_title)
+						{
+							array_unshift($user, array('data' => check_plain($title), 'rowspan' => count($user_array)));
+							$new_title = false;
+						}
+						if($new_team && $is_multiple)
+						{
+							array_unshift($user, array('data' => check_plain($team), 'rowspan' => $users_per_team[$day][$shift][$team]));
+							$new_team = false;
+						}
+						if($new_shift)
+						{
+							array_unshift($user, array('data' => check_plain($shift), 'rowspan' => $users_per_shift[$day][$shift]));
+							$new_shift = false;
+						}
+						if($new_day)
+						{
+							array_unshift($user, array('data' => check_plain($day), 'rowspan' => $users_per_day[$day]));
+							$new_day = false;
+						}
+						$rows[] = $user;
+					}
+				}
+			}
+		}
+	}
+	
+	$headers = array(t('Day'), t('Shift'), t('Title'), t('User'));//, t('Name'), t('Email'));
+	$output = theme('table', $headers, $rows);
+	
+	return $output;
+	
+	/*
+	$query_result = db_query("SELECT ".
+			"ts.title AS title, ".
+			"ts.shift_id AS shift_id, ".
+			"start_date, ".
+			"length, ".
+			"participant_num, ".
+			"COUNT(tp.user_id) AS num_signed_up, ".
+			"name, ".
+			"u.user_id AS user_id ".
+		"FROM ".
+		"{transmute_shifts} ts ".
+		"LEFT JOIN {transmute_participants} tp ".
+		"ON ts.shift_id = tp.shift_id ".
+		"LEFT JOIN {transmute_teams} tt ".
+		"ON ts.team_id = tt.team_id ".
+		"LEFT JOIN (".
+			"SELECT * FROM ".
+			"{transmute_participants}".
+			" WHERE user_id = %d".
+		") AS u ".
+		"ON u.shift_id = ts.shift_id ".
+		"WHERE ts.team_id = %d ".
+		"GROUP BY ts.shift_id ".
+		"ORDER BY start_date ASC",
+		$user->uid, 
+		$team['team_id']
+	);
+	
+	while ($result = db_fetch_object($query_result))
+	{
+		$start_time = date('g:ia', strtotime($result->start_date));
+		$end_time = date('g:ia', strtotime($result->start_date) + (60 * 60 * $result->length));
+		$submit_text = isset($result->user_id) ? 'Cancel' : 'Sign Up';
+		
+		
+		$form[$result->shift_id]['start_date_hidden'] = array('#type' => 'hidden', '#value' => date('D, M j', strtotime($result->start_date)));
+		$form[$result->shift_id]['time_range_hidden'] = array('#type' => 'hidden', '#value' => check_plain($start_time . ' - ' . $end_time));
+		$form[$result->shift_id]['name_hidden']		  = array('#type' => 'hidden', '#value' => check_plain($result->name));
+		
+		$form[$result->shift_id]['title']		  = array('#value' => check_plain($result->title));		
+		$form[$result->shift_id]['start_date'] = array('#value' => date('D, M j', strtotime($result->start_date)));
+		$form[$result->shift_id]['time_range'] = array('#value' => check_plain($start_time . ' - ' . $end_time . ' (' . $result->length . ' ' . transmute_plural($result->length, 'hour') . ')'));
+		//$form[$result->shift_id]['length'] = array('#value' => check_plain($result->length));
+		$form[$result->shift_id]['shift_info'] = array('#value' => check_plain(($result->participant_num-$result->num_signed_up) . '/' . $result->participant_num));
+		$form[$result->shift_id]['sign_up'] = array(
+			'#type' => 'submit', 
+			'#name' => check_plain($result->shift_id),
+		);
+		if(isset($result->user_id))
+		{
+			$form[$result->shift_id]['sign_up']['#value'] = t('Cancel');
+			$form[$result->shift_id]['sign_up']['#attributes'] = array('onclick' => 'return confirm("' . t('Are you sure you want to remove yourself from this volunteer shift?') . '");');
+		}
+		else
+			$form[$result->shift_id]['sign_up']['#value'] = t('Sign Up');
+	}
+	*/
+} //function transmute_volunteer_schedule_page
+
+function theme_transmute_volunteer_schedule_page($rows)
+{
+	//var_dump($rows);
+	$headers = array(t('Day'), t('Shift'), t('Title'), t('User'), t('Name'), t('Email'));
+	//$output = theme('table', $headers, $rows);
+	$output = 'a';
+	return $output;
+}

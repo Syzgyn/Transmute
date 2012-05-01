@@ -36,7 +36,11 @@ function transmute_theme()
 		'transmute_volunteer_shift_page' => array(
 			'arguments'	=> array('form' => NULL),
 			'file'		=> 'transmute.user.inc',
-		),
+		),/*
+		'transmute_volunteer_schedule_page' => array(
+			'arguments'	=> array('team' => NULL),
+			'file'		=> 'transmute.user.inc',
+		),*/
 		
 	);
 } //function transmute_theme
@@ -66,10 +70,16 @@ function transmute_menu()
 	
 	$items['volunteer/%transmute_team'] = array(
 		'type' 				=> MENU_CALLBACK,
-		'title' 			=> t('Volunteer'),
-		'description' 		=> t('Help volunteer!'),
 		'page callback' 	=> 'drupal_get_form',
 		'page arguments' 	=> array('transmute_volunteer_shift_page', 1),
+		'access arguments' 	=> array('access transmute content'),
+		'file'				=> 'transmute.user.inc',
+	);
+	
+	$items['volunteer/%transmute_team/schedule'] = array(
+		'type' 				=> MENU_CALLBACK,
+		'page callback' 	=> 'transmute_volunteer_schedule_page',
+		'page arguments' 	=> array(1),
 		'access arguments' 	=> array('access transmute content'),
 		'file'				=> 'transmute.user.inc',
 	);
