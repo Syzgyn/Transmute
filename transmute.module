@@ -76,12 +76,30 @@ function transmute_menu()
 		'file'				=> 'transmute.user.inc',
 	);
 	
+	$items['volunteer/%transmute_team/shifts'] = array(
+		'type'				=> MENU_DEFAULT_LOCAL_TASK,
+		'title'				=> t('Shifts'),
+		'access arguments' 	=> array('access transmute content'),
+		'weight'			=> 2,
+	);
+	
+	$items['volunteer/%/edit'] = array(
+		'type'				=> MENU_LOCAL_TASK,
+		'title'				=> t('Edit'),
+		'page callback'		=> 'transmute_redirect',
+		'page arguments'	=> array('admin/settings/transmute/!id/shifts', 1),
+		'access arguments'	=> array('administer transmute'),
+		'weight'			=> 1,
+	);
+	
 	$items['volunteer/%transmute_team/schedule'] = array(
-		'type' 				=> MENU_CALLBACK,
+		'type' 				=> MENU_LOCAL_TASK,
+		'title'				=> t('Schedule'),
 		'page callback' 	=> 'transmute_volunteer_schedule_page',
 		'page arguments' 	=> array(1),
 		'access arguments' 	=> array('access transmute content'),
 		'file'				=> 'transmute.user.inc',
+		'weight'			=> 3,
 	);
 	
 	//------------------------------------------------------------------------------------
@@ -145,6 +163,7 @@ function transmute_menu()
 		'title' 			=> t('Edit'),
 		'access arguments' 	=> array('administer transmute'),
 		'file' 				=> 'transmute.admin.inc',
+		'weight'			=> 2,
 	);
 	
 	$items['admin/settings/transmute/%transmute_team/shifts'] = array(
@@ -154,7 +173,16 @@ function transmute_menu()
 		'page arguments' 	=> array('transmute_admin_shift_list', 3),
 		'access arguments' 	=> array('administer transmute'),
 		'file' 				=> 'transmute.admin.inc',
-		'weight'			=> 2,
+		'weight'			=> 3,
+	);
+	
+	$items['admin/settings/transmute/%/view'] = array(
+		'type'				=> MENU_LOCAL_TASK,
+		'title'				=> t('View'),
+		'page callback'		=> 'transmute_redirect',
+		'page arguments'	=> array('volunteer/!id', 3),
+		'access arguments'	=> array('administer transmute'),
+		'weight'			=> 1,
 	);
 	
 	$items['admin/settings/transmute/%transmute_team/shifts/%'] = array(
@@ -308,3 +336,9 @@ function transmute_plural($num, $word, $plural='')
 		$plural = $word . 's';
 	return $num == 1 ? $word : $plural;
 } //function transmute_plural
+
+function transmute_redirect($path, $id)
+{
+	//var_dump(func_get_args());
+	drupal_goto(t($path, array('!id' => $id)));
+}

@@ -283,20 +283,21 @@ function transmute_volunteer_schedule_page($team)
 	while($data = db_fetch_array($result))
 	{
 		//Get a user object for username, email, and real name
+		$date = date('D, M j', strtotime($data['start_date']));
 		$user = user_load($data['uid']);
 		profile_load_profile($user);
 		
 		$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
-		$schedule[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['name']][$data['title']][] = array(
+		$schedule[$date][$shift_label][$data['name']][$data['title']][] = array(
 			check_plain($user->name),
 			//check_plain($user->{profile_name}),
 			//check_plain($user->mail),
 		);
 		
 		//These are used to track the number of users per each grouping, since we can't use count() in the middle of the loop of each grouping.
-		  $users_per_day[date('Y-m-d', strtotime($data['start_date']))]++;
-		$users_per_shift[date('Y-m-d', strtotime($data['start_date']))][$shift_label]++;
-		 $users_per_team[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['title']]++;
+		  $users_per_day[$date]++;
+		$users_per_shift[$date][$shift_label]++;
+		 $users_per_team[$date][$shift_label][$data['title']]++;
 	}
 	
 	//These loops add the appropriate number for rowspan for each element to have, working outwards.
