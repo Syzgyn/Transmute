@@ -275,10 +275,19 @@ function transmute_block($op = 'list', $delta = 0)
 				'status'		=> 1,
 				'region'		=> 'content_bottom',
 				'visibility'	=> 2,
-				'pages'			=> '<?php
-										global $user; 
-										return (arg(0) == \'user\' && $user->uid == arg(1) && arg(2) == \'\')
-									?>',
+				'pages'			=> '<?php' . 
+									'	global $user;'.
+									'	return (arg(0) == \'user\' && ($user->uid == arg(1) || array_key_exists(3, $user->roles)) && arg(2) == \'\')'.
+									'?>',
+									'<?php'.
+									'	global $user;'.
+									'	if(arg(0) == \'user\' && is_numeric(arg(1)) && arg(2) == \'\')'.
+									'	{'.
+									'		if($user->uid == arg(1) || array_key_exists(3, $user->roles))'.
+									'			return true;'.
+									'	}'.
+									'	return false;'.
+									'?>',
 			);
 			break;
 		case 'view':
@@ -296,7 +305,7 @@ function transmute_block($op = 'list', $delta = 0)
 					"ON ts.team_id = tt.team_id ".
 				"WHERE tp.user_id = %d ".
 				"ORDER BY start_date ASC",
-				$user->uid 
+				arg(1)
 			);
 			
 			while($shift = db_fetch_array($result))

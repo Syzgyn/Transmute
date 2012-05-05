@@ -43,6 +43,7 @@ function theme_transmute_volunteer_page($form)
 	$header = array(t('Team'), array('data' => t('Shifts')), t('Schedule'));//, 'colspan' => 2));
 	$output = "\r\n<!-- Custom volunteer interface written for Alchemy LLC.\r\n".
 		"Contact Patrick Murphy at pmurphy@alchemyfestival.com for more info.  Thanks to Transformus for the inspiration! -->\r\n";
+	$output .= '<div>' . variable_get('transmute_page_text', '') . '</div>';
 	$output .= theme('table', $header, $rows);
 	$output .= drupal_render($form);
 
@@ -52,6 +53,13 @@ function theme_transmute_volunteer_page($form)
 function transmute_volunteer_shift_page($form_state, $team)
 {
 	global $user;
+	$logged_in = true;
+	
+	if($user->uid == 0)
+	{
+		$logged_in = false;
+		drupal_set_message('Notice: You must be logged in to sign up for shifts.', 'warning', false);
+	}
 	
 	if(!isset($team))
 		return drupal_not_found();
@@ -93,11 +101,6 @@ function transmute_volunteer_shift_page($form_state, $team)
 		$end_time = date('g:ia', strtotime($result->start_date) + (60 * 60 * $result->length));
 		$submit_text = isset($result->user_id) ? 'Cancel' : 'Sign Up';
 		
-		
-		$form[$result->shift_id]['start_date_hidden'] = array('#type' => 'hidden', '#value' => date('D, M j', strtotime($result->start_date)));
-		$form[$result->shift_id]['time_range_hidden'] = array('#type' => 'hidden', '#value' => check_plain($start_time . ' - ' . $end_time));
-		$form[$result->shift_id]['name_hidden']		  = array('#type' => 'hidden', '#value' => check_plain($result->name));
-		
 		$form[$result->shift_id]['title']		  = array('#value' => check_plain($result->title));		
 		$form[$result->shift_id]['start_date'] = array('#value' => date('D, M j', strtotime($result->start_date)));
 		$form[$result->shift_id]['time_range'] = array('#value' => check_plain($start_time . ' - ' . $end_time . ' (' . $result->length . ' ' . transmute_plural($result->length, 'hour') . ')'));
@@ -106,12 +109,18 @@ function transmute_volunteer_shift_page($form_state, $team)
 		$form[$result->shift_id]['sign_up'] = array(
 			'#type' => 'submit', 
 			'#name' => check_plain($result->shift_id),
+			'#start_date'	=> date('D, M j', strtotime($result->start_date)),
+			'#time_range'	=> check_plain($start_time . ' - ' . $end_time),
+			'#title'		=> check_plain($result->name),
 		);
 		if(isset($result->user_id))
 		{
 			//Already signed up, show cancel button
 			$form[$result->shift_id]['sign_up']['#value'] = t('Cancel');
-			$form[$result->shift_id]['sign_up']['#attributes'] = array('onclick' => 'return confirm("' . t('Are you sure you want to remove yourself from this volunteer shift?') . '");');
+			$form[$result->shift_id]['sign_up']['#attributes'] = array(
+				'onclick' => 'return confirm("' . t('Are you sure you want to remove yourself from this volunteer shift?') . '");',
+				'class' => 'cancel-button',
+			);
 		}
 		elseif($result->participant_num > $result->num_signed_up)
 		{
@@ -124,6 +133,9 @@ function transmute_volunteer_shift_page($form_state, $team)
 			$form[$result->shift_id]['sign_up']['#type'] = 'markup';
 			$form[$result->shift_id]['sign_up']['#value'] = 'FULL';
 		}
+		
+		if(!$logged_in)
+			$form[$result->shift_id]['sign_up']['#type'] = 'markup';
 	}
 	
 	return $form;
@@ -215,9 +227,9 @@ function transmute_volunteer_shift_page_submit($form, &$form_state)
 			l('your profile', 'user/' . $uid) . 
 			' to see all your volunteer information',
 			array(
-				'%name' => $form_state['values']['name_hidden'],
-				'%date' => $form_state['values']['start_date_hidden'], 
-				'%time' => $form_state['values']['time_range_hidden']
+				'%name' => $form_state['clicked_button']['#title'],
+				'%date' => $form_state['clicked_button']['#start_date'], 
+				'%time' => $form_state['clicked_button']['#time_range']
 			)
 		));
 	}
@@ -227,9 +239,9 @@ function transmute_volunteer_shift_page_submit($form, &$form_state)
 		
 		drupal_set_message(t('You have removed yourself from a %name shift on %date from %time.',
 			array(
-				'%name' => $form_state['values']['name_hidden'],
-				'%date' => $form_state['values']['start_date_hidden'], 
-				'%time' => $form_state['values']['time_range_hidden']
+				'%name' => $form_state['clicked_button']['#title'],
+				'%date' => $form_state['clicked_button']['#start_date'], 
+				'%time' => $form_state['clicked_button']['#time_range']
 			)
 		));
 	}
