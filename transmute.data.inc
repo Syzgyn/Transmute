@@ -305,13 +305,13 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 	{
 		case 0: //Schedule
 			$result = db_query(
-				'SELECT u.uid, ts.start_date, ts.length '.
+				'SELECT u.uid, ts.start_date, ts.length, ts.title '.
 				'FROM {transmute_teams} tt '.
 					'LEFT JOIN {transmute_shifts} ts ON tt.team_id = ts.team_id '.
 					'LEFT JOIN {transmute_participants} tp ON ts.shift_id = tp.shift_id '.
 					'LEFT JOIN {users} u ON tp.user_id = u.uid '.
 				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= %d ') .
-				'ORDER BY ts.start_date ASC',
+				'ORDER BY ts.start_date ASC, ts.title',
 				$team_id
 			);
 			
@@ -331,7 +331,7 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 			//Day
 			//	Shift time
 			//		User
-			$output[] = array('Day', 'Shift', 'User', 'Name', 'Email');
+			$output[] = array('Day', 'Shift', 'Shift Title', 'User', 'Name', 'Email');
 			while($data = db_fetch_array($result))
 			{
 				//Get a user object for username, email, and real name
@@ -339,7 +339,7 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 				profile_load_profile($user);
 				
 				$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
-				$output[] = array(date('Y-m-d', strtotime($data['start_date'])), $shift_label, $user->name, $user->{profile_name}, $user->mail);
+				$output[] = array(date('Y-m-d', strtotime($data['start_date'])), $shift_label, $data['title'], $user->name, $user->{profile_name}, $user->mail);
 			}
 			
 			$output[] = array('');

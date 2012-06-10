@@ -252,11 +252,11 @@ function transmute_team_load($team_id, $shift_id = NULL)
 			if($shift = db_fetch_array($result))
 				return $shift;
 			else
-				drupal_not_found();
+				return NULL;
 		}
 	}
 	else
-		drupal_not_found();
+		return NULL;
 } //function transmute_team_load
 
 
@@ -350,4 +350,9 @@ function transmute_redirect($path, $id)
 {
 	//var_dump(func_get_args());
 	drupal_goto(t($path, array('!id' => $id)));
+}
+
+function transmute_views_api()
+{
+	return array('api' => 2);
 }

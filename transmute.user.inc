@@ -61,7 +61,7 @@ function transmute_volunteer_shift_page($form_state, $team)
 		drupal_set_message('Notice: You must be logged in to sign up for shifts.', 'warning', false);
 	}
 	
-	if(!isset($team))
+	if(empty($team))
 		return drupal_not_found();
 	
 	$form['description'] = array('#value' => $team['description']);
@@ -256,7 +256,7 @@ function transmute_volunteer_schedule_page($team)
 	
 	//global $user;
 	
-	if(!isset($team))
+	if(empty($team))
 		return drupal_not_found();
 	
 	//$form['description'] = array('#value' => $team['description']);
