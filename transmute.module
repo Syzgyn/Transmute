@@ -49,10 +49,22 @@ function transmute_theme()
 * Valid permissions for this module
 * @return array An array of valid permissions for the transmute module
 */
-function transmute_perm()
+function transmute_permission()
 {
-	return array('access transmute content', 'export transmute data', 'administer transmute');
-} // function transmute_perm()
+	return array(
+		'access transmute content' => array(
+			'title'		=> t('Access Transmute Content'),
+			'description'	=> t('Access and interact with volunteer system'),
+		),
+		'export transmute data'	   => array(
+			'title'		=> t('Export Transmute Data'),
+			'description'	=> t('Export user data from the system'),
+		), 'administer transmute'  => array(
+			'title'		=> t('Administer Transmute'),
+			'description'	=> t('Administer the volunteer system'),
+		),
+	);
+} // function transmute_permission
 
 function transmute_menu()
 {
@@ -260,84 +272,70 @@ function transmute_team_load($team_id, $shift_id = NULL)
 } //function transmute_team_load
 
 
-function transmute_block($op = 'list', $delta = 0)
-{
-	global $user;
-	
+function transmute_block_info(){
 	$block = array();
-	
-	switch($op)
-	{
-		case 'list':
-			$block[0] = array(
-				'info' 			=> t('Volunteer user data'),
-				'cache'			=> BLOCK_CACHE_PER_PAGE,
-				'status'		=> 1,
-				'region'		=> 'content_bottom',
-				'visibility'	=> 2,
-				'pages'			=> '<?php' . 
-									'	global $user;'.
-									'	return (arg(0) == \'user\' && ($user->uid == arg(1) || array_key_exists(3, $user->roles)) && arg(2) == \'\')'.
-									'?>',
-									'<?php'.
-									'	global $user;'.
-									'	if(arg(0) == \'user\' && is_numeric(arg(1)) && arg(2) == \'\')'.
-									'	{'.
-									'		if($user->uid == arg(1) || array_key_exists(3, $user->roles))'.
-									'			return true;'.
-									'	}'.
-									'	return false;'.
-									'?>',
-			);
-			break;
-		case 'view':
-			$result = db_query("SELECT ".
-					"ts.team_id AS team_id, ".
-					"ts.shift_id AS shift_id, ".
-					"start_date, ".
-					"length, ".
-					"name ".
-				"FROM ".
-					"{transmute_shifts} ts ".
-				"LEFT JOIN {transmute_participants} tp ".
-					"ON ts.shift_id = tp.shift_id ".
-				"LEFT JOIN {transmute_teams} tt ".
-					"ON ts.team_id = tt.team_id ".
-				"WHERE tp.user_id = %d ".
-				"ORDER BY start_date ASC",
-				arg(1)
-			);
-			
-			while($shift = db_fetch_array($result))
-			{
-				$start_time = date('g:ia', strtotime($shift['start_date']));
-				$end_time = date('g:ia', strtotime($shift['start_date']) + (60 * 60 * $shift['length']));
-				//$time_range = $start_time . ' - ' . $end_time;
-				$content['name'] = array('#value' => $shift['name']);
-				$content['date'] = array('#value' => date('D, M j', strtotime($shift['start_date'])));
-				$content['time'] = array('#value' => $start_time . ' - ' . $end_time);
-				$content['length'] = array('#value' => $shift['length']);
-				$content['cancel'] = array('#value' => l(t('Cancel'), 'volunteer/' . $shift['team_id']));
-				
-				$rows[] = array(
-					drupal_render($content['name']),
-					drupal_render($content['date']),
-					drupal_render($content['time']),
-					drupal_render($content['length']),
-					drupal_render($content['cancel']),
-				);
-			}
-			if(!empty($rows))
-			{
-				$header = array(t('Team'), t('Day'), t('Time'), t('Length'), t('Cancel'));
-				$block['content'] = theme('table', $header, $rows);
-				$block['subject'] = t('Volunteer Info');
-			}
-			
-			break;
-	}
+	$block['transmute_user_info'] = array(
+		'info' 			=> t('Volunteer user data'),
+		'cache'			=> BLOCK_CACHE_PER_PAGE,
+		'status'		=> 1,
+		'region'		=> 'content_bottom',
+		'visibility'	=> 2,
+		'pages'			=> '<?php' . 
+					'	global $user;'.
+					'	return (arg(0) == \'user\' && ($user->uid == arg(1) || array_key_exists(3, $user->roles)) && arg(2) == \'\')'.
+					'?>',
+	);
 	return $block;
-} //function transmute_block
+}
+
+function transmute_block_view($delta='')
+{
+	//ignore delta since we only have one block
+	$result = db_query("SELECT ".
+			"ts.team_id AS team_id, ".
+			"ts.shift_id AS shift_id, ".
+			"start_date, ".
+			"length, ".
+			"name ".
+		"FROM ".
+			"{transmute_shifts} ts ".
+		"LEFT JOIN {transmute_participants} tp ".
+			"ON ts.shift_id = tp.shift_id ".
+		"LEFT JOIN {transmute_teams} tt ".
+			"ON ts.team_id = tt.team_id ".
+		"WHERE tp.user_id = %d ".
+		"ORDER BY start_date ASC",
+		arg(1)
+	);
+	
+	while($shift = db_fetch_array($result))
+	{
+		$start_time = date('g:ia', strtotime($shift['start_date']));
+		$end_time = date('g:ia', strtotime($shift['start_date']) + (60 * 60 * $shift['length']));
+		//$time_range = $start_time . ' - ' . $end_time;
+		$content['name'] = array('#value' => $shift['name']);
+		$content['date'] = array('#value' => date('D, M j', strtotime($shift['start_date'])));
+		$content['time'] = array('#value' => $start_time . ' - ' . $end_time);
+		$content['length'] = array('#value' => $shift['length']);
+		$content['cancel'] = array('#value' => l(t('Cancel'), 'volunteer/' . $shift['team_id']));
+		
+		$rows[] = array(
+			drupal_render($content['name']),
+			drupal_render($content['date']),
+			drupal_render($content['time']),
+			drupal_render($content['length']),
+			drupal_render($content['cancel']),
+		);
+	}
+	if(!empty($rows))
+	{
+		$header = array(t('Team'), t('Day'), t('Time'), t('Length'), t('Cancel'));
+		$block['content'] = theme('table', $header, $rows);
+		$block['subject'] = t('Volunteer Info');
+	}
+	
+	return $block;
+} //function transmute_block_view
 
 function transmute_plural($num, $word, $plural='')
 {

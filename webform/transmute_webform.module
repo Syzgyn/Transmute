@@ -191,9 +191,9 @@ function transmute_webform_cron()
 	
 	$last_run = variable_get('transmute_webform_cron_last_run', 0);
 	
-	if(time() - $last_run > 60 * 60 * 23.5)	//using 23.5 instead of 24 to account for small second shifts in cron running not throwing us off.
+	if(REQUEST_TIME - $last_run > 60 * 60 * 23.5)	//using 23.5 instead of 24 to account for small second shifts in cron running not throwing us off.
 	{
-		variable_set('transmute_webform_cron_last_run', time());
+		variable_set('transmute_webform_cron_last_run', REQUEST_TIME);
 		
 		$result = db_query('SELECT m.emails, m.last_count, m.component_id, c.name, COUNT(w.user_id) AS current_count ' .
 			'FROM {transmute_webform_mail} m ' .

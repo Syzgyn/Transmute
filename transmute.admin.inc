@@ -52,32 +52,32 @@ function transmute_admin_team($form_state, $team = NULL)
 		drupal_set_title(t('Editing ' . $team['name']));
 		
 		$form['team_id'] = array(
-			'#type' 		=> 'hidden',
-			'#value'		=> $team['team_id'],
+			'#type' 	=> 'hidden',
+			'#value'	=> $team['team_id'],
 		);
 	}
 	
 	$form['name'] = array(
-		'#type' 			=> 'textfield',
-		'#title' 			=> t('Team Name'),
+		'#type' 		=> 'textfield',
+		'#title' 		=> t('Team Name'),
 		'#default_value'	=> check_plain($team['name']),
 		'#description' 		=> t('Specify a name for the team.'),
 		'#required' 		=> TRUE,
 	);
 	
 	$form['desc'] = array(
-		'#type'				=> 'textarea',
-		'#title'			=> t('Description'),
+		'#type'			=> 'text_format',
+		'#base_type'		=> 'textarea',
+		'#title'		=> t('Description'),
 		'#default_value'	=> check_markup($team['description']),
 		'#description'		=> t('Describe what volunteering for this team involves.'),
-		'#required'			=> TRUE,
+		'#required'		=> TRUE,
 	);
 	
-	$form['format'] = filter_form();
 	
 	$form['submit'] = array(
-		'#type' 			=> 'submit', 
-		'#value' 			=> t('Save Team')
+		'#type' 		=> 'submit', 
+		'#value' 		=> t('Save Team')
 	);
 	
 	return $form;
@@ -144,30 +144,29 @@ function transmute_admin_settings()
 	);
 	
 	$form['transmute_event_start_date'] = array(
-		'#type'				=> 'date',
-		'#title'			=> t('Event Start Date'),
+		'#type'			=> 'date',
+		'#title'		=> t('Event Start Date'),
 		'#default_value'	=> variable_get('transmute_event_start_date', array()),
 		'#description'		=> t('The first day to have schedules for.'),
-		'#required'			=> TRUE,
+		'#required'		=> TRUE,
 		);
 	
 	$form['transmute_event_end_date'] = array(
-		'#type'				=> 'date',
-		'#title'			=> t('Event Finish Date'),
+		'#type'			=> 'date',
+		'#title'		=> t('Event Finish Date'),
 		'#default_value'	=> variable_get('transmute_event_end_date', array()),
 		'#description'		=> t('The last day to have schedules for.'),
-		'#required'			=> TRUE,
+		'#required'		=> TRUE,
 		);
 		
 	$form['transmute_page_text'] = array(
-		'#type' => 'textarea',
-		'#title' => t('Main page text'),
-		'#default_value' => check_markup(variable_get('transmute_page_text', '')),
-		'#rows' => 20,
-		'#description' => t("Text to display on the front volunteer page."),
+		'#type'			=> 'text_format',
+		'#base_type'		=> 'textarea',
+		'#title'		=> t('Main page text'),
+		'#default_value'	=> check_markup(variable_get('transmute_page_text', '')),
+		'#rows'			=> 20,
+		'#description'		=> t("Text to display on the front volunteer page."),
 	);
-	
-	$form['format'] = filter_form();
 	
 	return system_settings_form($form);
 } //function transmute_admin_settings
@@ -471,7 +470,7 @@ function transmute_admin_shift_submit($form, &$form_state)
 				$form_state['values']['length'], 
 				$form_state['values']['participant_num'], 
 				$shift_id);
-		drupal_set_message(t('Shift updated. ' . $final_date));
+		drupal_set_message(t('Shift updated. @date', array('@date' => $final_date)));
 		
 		//Modify the participant list if the associated box is checked
 		if($form_state['values']['modify_participant_list'] == 1)
@@ -481,7 +480,7 @@ function transmute_admin_shift_submit($form, &$form_state)
 			$users = explode("\n", trim($form_state['values']['participant_list']));
 			foreach($users as $k => $v)
 			{
-				$user = user_load(array('name' => trim($v)));
+				$user = user_load_by_name(trim($v));
 				if($user && $user->uid != 0)
 				{
 					db_query("INSERT INTO {transmute_participants} (shift_id, user_id) VALUES (%d, %d)", $shift_id, $user->uid);

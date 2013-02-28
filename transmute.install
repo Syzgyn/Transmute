@@ -22,7 +22,7 @@ function transmute_schema() {
 			'description' => array(
 				'type'	=> 'text',
 				'not null' => TRUE,
-				'default' => '',
+	//			'default' => '',
 				'description'	=> 'Short blurb for the team',
 			),
 		),
@@ -47,7 +47,7 @@ function transmute_schema() {
 			'start_date' => array(
 				'type'	=> 'datetime',
 				'not null' => TRUE,
-				'default' => 0,
+	//			'default' => 0,
 				'description'	=> 'Date and time that the shift starts',
 			),
 			'length' => array(
@@ -112,17 +112,10 @@ function transmute_update_6001()
 	//Update unique key to include title
 	db_drop_unique_key($ret, 'transmute_shifts', 'team_start_length');
 	db_add_unique_key($ret, 'transmute_shifts', 'team_unique', array('team_id', 'start_date', 'length', 'title'));
-	return $ret;
 } //function transmute_update_6101
-
-function transmute_install()
-{
-	drupal_install_schema('transmute');
-} //function transmute_install
 
 function transmute_uninstall()
 {
-	drupal_uninstall_schema('transmute');
 	variable_del('transmute_default_shift_length');
 	variable_del('transmute_default_shift_participants');
 } //function transmute_uninstall

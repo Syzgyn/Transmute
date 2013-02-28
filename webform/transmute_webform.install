@@ -68,16 +68,9 @@ function transmute_webform_update_6001()
 		'default' => 0,
 		'description'	=> 'Date and time that the team was selected'
 	));
-	return $ret;
 } //function transmute_webform_update_6001
-
-function transmute_webform_install()
-{
-	drupal_install_schema('transmute_webform');
-} //function transmute_install
 
 function transmute_webform_uninstall()
 {
-	drupal_uninstall_schema('transmute_webform');
 	variable_del('transmute_webform_target_id');
 } //function transmute_uninstall
