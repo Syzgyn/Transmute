@@ -21,20 +21,20 @@ function transmute_help($path, $arg)
 function transmute_theme()
 {
 	return array(
-		'transmute_admin_list' => array(
-			'arguments'	=> array('form' => NULL),
+		'transmute_admin_list'  => array(
+			'render element'=> 'form',
 			'file'		=> 'transmute.admin.inc',
 		),
 		'transmute_admin_shift_list' => array(
-			'arguments'	=> array('form' => NULL),
+			'render element'=> 'form',
 			'file'		=> 'transmute.admin.inc',
 		),
 		'transmute_volunteer_page' => array(
-			'arguments'	=> array('form' => NULL),
+			'render element'=> 'form',
 			'file'		=> 'transmute.user.inc',
 		),
 		'transmute_volunteer_shift_page' => array(
-			'arguments'	=> array('form' => NULL),
+			'render element'=> 'form',
 			'file'		=> 'transmute.user.inc',
 		),/*
 		'transmute_volunteer_schedule_page' => array(
@@ -253,15 +253,16 @@ function transmute_menu()
 //Wildcard function called for menu items
 function transmute_team_load($team_id, $shift_id = NULL)
 {
-	$result = db_query('SELECT * FROM {transmute_teams} WHERE team_id = %d', $team_id);
-	if($team = db_fetch_array($result))
+	$result = db_query('SELECT * FROM {transmute_teams} WHERE team_id = :t_id', array(':t_id' => $team_id));
+	if($team = $result->fetchAssoc())
 	{
 		if(!isset($shift_id))
 			return $team;
 		else
 		{
-			$result = db_query('SELECT * FROM {transmute_shifts} WHERE team_id = %d AND shift_id = %d', $team_id, $shift_id);
-			if($shift = db_fetch_array($result))
+			$result = db_query('SELECT * FROM {transmute_shifts} WHERE team_id = :team_id AND shift_id = :shift_id',
+				array(':team_id' => $team_id, ':shift_id' => $shift_id));
+			if($shift = $result->fetchAssoc())
 				return $shift;
 			else
 				return NULL;
@@ -276,7 +277,7 @@ function transmute_block_info(){
 	$block = array();
 	$block['transmute_user_info'] = array(
 		'info' 			=> t('Volunteer user data'),
-		'cache'			=> BLOCK_CACHE_PER_PAGE,
+		'cache'			=> 'BLOCK_CACHE_PER_PAGE',
 		'status'		=> 1,
 		'region'		=> 'content_bottom',
 		'visibility'	=> 2,
@@ -290,6 +291,7 @@ function transmute_block_info(){
 
 function transmute_block_view($delta='')
 {
+	global $user;
 	//ignore delta since we only have one block
 	$result = db_query("SELECT ".
 			"ts.team_id AS team_id, ".
@@ -303,12 +305,12 @@ function transmute_block_view($delta='')
 			"ON ts.shift_id = tp.shift_id ".
 		"LEFT JOIN {transmute_teams} tt ".
 			"ON ts.team_id = tt.team_id ".
-		"WHERE tp.user_id = %d ".
+		"WHERE tp.user_id = :uid ".
 		"ORDER BY start_date ASC",
-		arg(1)
+		array(':uid' => arg(1))
 	);
 	
-	while($shift = db_fetch_array($result))
+	while($shift = $result->fetchAssoc())
 	{
 		$start_time = date('g:ia', strtotime($shift['start_date']));
 		$end_time = date('g:ia', strtotime($shift['start_date']) + (60 * 60 * $shift['length']));

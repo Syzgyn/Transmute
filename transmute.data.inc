@@ -1,12 +1,12 @@
 <?php
-function transmute_data_list(&$form_state)
+function transmute_data_list($form, &$form_state)
 {
 	$result = db_query('SELECT name, team_id FROM {transmute_teams}');
 	
 	$options = array();
-	while($team = db_fetch_object($result))
+	while($team = $result->fetchAssoc())
 	{
-		$options[$team->team_id] = check_plain($team->name);
+		$options[$team['team_id']] = check_plain($team['name']);
 	}
 	$form['teams'] = array(
 		'#type'		=> 'checkboxes',
@@ -32,29 +32,25 @@ function transmute_data_list(&$form_state)
 	$form['view_people'] = array(
 		'#type'		=> 'submit',
 		'#value'	=> t('View'),
-		'#name'		=> 'view',
+		'#submit'	=> array('transmute_data_list_submit_print'),
 	);
 	
 	$form['view_download'] = array(
 		'#type'		=> 'submit',
 		'#value'	=> t('Download'),
-		'#name'		=> 'download',
+		'#submit'	=> array('transmute_data_list_submit_download'),
 	);
 	
 	$form['data'] = array(
-		'#value'	=> '',
+		'#markup'	=> '',
 	);
 	
-	if(!$form_state['submitted'])
+	if(!$form_state['submitted'] || !$form_state['display_table'])
 		return $form;
 	//Should get this far only if the form has been submitted already.
 	
 	//teams array returns K->V pairs of 0 or 1.  Remove the zeroes to iterate only the teams we want to see.
-	function over_zero($x)
-	{
-		return($x > 0);
-	}
-	$view_teams = array_filter($form_state['values']['teams'], 'over_zero');
+	$view_teams = array_filter($form_state['values']['teams'], '_transmute_over_zero');
 	
 	//$form['data'] gets displayed at the end of the form, put our output there.
 	if($form_state['values']['grouping'] == 0)
@@ -64,31 +60,28 @@ function transmute_data_list(&$form_state)
 			
 			$participants = _transmute_query_participant($form_state['values']['format'], $team_id);
 			
-			$form['data']['#value'] .= $participants;
+			$form['data']['#markup'] .= $participants;
 		}
 	}
 	else
 	{
-		$form['data']['#value'] .= _transmute_query_participant($form_state['values']['format'], $view_teams, TRUE);
+		$form['data']['#markup'] .= _transmute_query_participant($form_state['values']['format'], $view_teams, TRUE);
 	}
 	return $form;
 } //function transmute_data_list
 
-function transmute_data_list_submit($form, &$form_state)
+function transmute_data_list_submit_print($form, &$form_state)
 {
-	$clicked_button = $form_state['clicked_button'];
-	$view_type = $clicked_button['#name']; 
-	
-	if($view_type == 'download')
-	{
-		//If we're downloading, output the csv file with headers
-		_transmute_download_csv($form_state);
-	}
-	else
-	{
-		//If not, submit and rebuild the form, the logic is at the end of transmute_data_list()
-		$form_state['rebuild'] = TRUE;
-	}
+	//submit and rebuild the form, the logic is at the end of transmute_data_list()
+	$form_state['rebuild'] = TRUE;
+	$form_state['display_table'] = TRUE;
+}
+
+function transmute_data_list_submit_download($form, &$form_state)
+{
+	$form_state['rebuild'] = TRUE;
+	$form_state['display_table'] = FALSE;
+	_transmute_download_csv($form_state);
 }
 
 function _transmute_query_participant($view_type, $team_id)
@@ -96,13 +89,13 @@ function _transmute_query_participant($view_type, $team_id)
 	$is_multiple = is_array($team_id);
 	if($is_multiple)
 	{
-		$mult_team_id = implode(',', array_fill(0, count($team_id), "%d"));
+		$mult_team_id = implode(',', $team_id); //array_fill(0, count($team_id), ":team_id"));
 		$team_name = t('Multiple Teams');
 	}
 	else
 	{
-		$team_result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = %d', $team_id);
-		$team_name = check_plain(db_fetch_object($team_result)->name);
+		$team_result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = :team_id', array(':team_id' =>$team_id))->fetchAssoc();
+		$team_name = check_plain($team_result['name']);
 	}
 	
 	switch($view_type)
@@ -114,9 +107,9 @@ function _transmute_query_participant($view_type, $team_id)
 					'LEFT JOIN {transmute_participants} tp ON tp.user_id = u.uid '.
 					'LEFT JOIN {transmute_shifts} ts ON ts.shift_id = tp.shift_id '.
 					'LEFT JOIN {transmute_teams} tt ON tt.team_id = ts.team_id '.
-				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= %d ') .
+				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id) " : '= :team_id ') .
 				'ORDER BY ts.start_date ASC',
-				$team_id
+				array(':team_id' =>$team_id)
 			);
 			/*
 			SELECT u.uid, ts.start_date, ts.length, tt.name, ts.title 
@@ -137,23 +130,29 @@ function _transmute_query_participant($view_type, $team_id)
 			//		Team Name
 			//			Shift Title
 			//				User
-			while($data = db_fetch_array($result))
+			while($data = $result->fetchAssoc())
 			{
 				//Get a user object for username, email, and real name
 				$user = user_load($data['uid']);
-				profile_load_profile($user);
+				$full_name = field_get_items('user', $user, 'field_real_name');
 				
 				$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
 				$schedule[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['name']][$data['title']][] = array(
 					check_plain($user->name),
-					check_plain($user->{profile_name}),
+					$full_name[0]['safe_value'],
 					check_plain($user->mail),
 				);
-				
+				$k = date('Y-m-d', strtotime($data['start_date']));
+				if(!isset($users_per_day[$k])) {$users_per_day[$k] = 0;}
+				if(!isset($users_per_shift[$k])) {$users_per_shift[$k] = array();}
+				if(!isset($users_per_shift[$k][$shift_label])) {$users_per_shift[$k][$shift_label] = 0;}
+				if(!isset($users_per_team[$k])) {$users_per_team[$k] = array();}
+				if(!isset($users_per_team[$k][$shift_label])) {$users_per_team[$k][$shift_label] = array();}
+				if(!isset($users_per_team[$k][$shift_label][$data['name']])) {$users_per_team[$k][$shift_label][$data['name']] = 0;}
 				//These are used to track the number of users per each grouping, since we can't use count() in the middle of the loop of each grouping.
-				  $users_per_day[date('Y-m-d', strtotime($data['start_date']))]++;
+				$users_per_day[date('Y-m-d', strtotime($data['start_date']))]++;
 				$users_per_shift[date('Y-m-d', strtotime($data['start_date']))][$shift_label]++;
-				 $users_per_team[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['title']]++;
+				$users_per_team[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['name']]++;
 			}
 			
 			//These loops add the appropriate number for rowspan for each element to have, working outwards.
@@ -208,9 +207,10 @@ function _transmute_query_participant($view_type, $team_id)
 			$headers[] = t('Title');
 			array_push($headers, t('User'), t('Name'), t('Email'));
 			$output = t('<hr/><h3>%team</h3>', array('%team' => $team_name));
-			$output .= theme('table', $headers, $rows);
+			$output .= theme('table', array('header' => $headers, 'rows' => $rows));
 			
 			return $output;
+			break;
 			
 		case 1:	//Contact List
 			$result = db_query(
@@ -219,21 +219,21 @@ function _transmute_query_participant($view_type, $team_id)
 					'LEFT JOIN {transmute_participants} tp ON tp.user_id = u.uid '.
 					'LEFT JOIN {transmute_shifts} ts ON ts.shift_id = tp.shift_id '.
 					'LEFT JOIN {transmute_teams} tt ON tt.team_id = ts.team_id '.
-				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= %d ') .
+				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= :team_id ') .
 				'GROUP BY u.uid',
-				$team_id
+				array(':team_id' => $team_id)
 			);
 			
 			$rows = array();
-			while($data = db_fetch_array($result))
+			while($data = $result->fetchAssoc())
 			{
 				//Get a user object for username, email, and real name
 				$user = user_load($data['uid']);
-				profile_load_profile($user);
+				$full_name = field_get_items('user', $user, 'field_real_name');
 				
 				if($user)
 				{
-					$a = array($user->name, $user->{profile_name}, $user->mail);
+					$a = array($user->name, $full_name[0]['safe_value'], $user->mail);
 					if($is_multiple)
 						array_push($a, $data['teams']);
 					
@@ -246,23 +246,16 @@ function _transmute_query_participant($view_type, $team_id)
 			if($is_multiple)
 				array_push($headers, t('Teams'));
 			
-			$output .= theme('table', $headers, $rows);
-			
+			$output .= theme('table', array('header' => $headers, 'rows' =>$rows));
 			return $output;
-			break;
 	}
 }
 
 function _transmute_download_csv($form_state)
 {
-	$output = array();
 	$output[] = array('Created ' . date('D, M j g:ia'));
 	
-	function over_zero($x)
-	{
-		return($x > 0);
-	}
-	$view_teams = array_filter($form_state['values']['teams'], 'over_zero');
+	$view_teams = array_filter($form_state['values']['teams'], '_transmute_over_zero');
 	
 	if($form_state['values']['grouping'] == 0)
 	{
@@ -279,7 +272,6 @@ function _transmute_download_csv($form_state)
 	$filename = $form_state['values']['format'] == 0 ? 'schedule-' . date('Y-m-d') . '.csv' : 'contacts-' . date('Y-m-d') . '.csv';
 	
 	//Headers
-	header("Content-type: text/csv");  
 	header("Cache-Control: no-store, no-cache");  
 	header('Content-Disposition: attachment; filename="' . $filename . '"');  
 	
@@ -291,6 +283,8 @@ function _transmute_download_csv($form_state)
 	}
 	
 	fclose($outstream);
+exit();	
+drupal_exit();
 } //function _transmute_download_csv
 
 function _transmute_get_csv(&$output, $view_type, $team_id)
@@ -298,7 +292,7 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 	$is_multiple = is_array($team_id);
 	if($is_multiple)
 	{
-		$mult_team_id = implode(',', array_fill(0, count($team_id), "%d"));
+		$mult_team_id = implode(',', $team_id);//array_fill(0, count($team_id), "%d"));
 	}
 	
 	switch($view_type)
@@ -310,9 +304,9 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 					'LEFT JOIN {transmute_shifts} ts ON tt.team_id = ts.team_id '.
 					'LEFT JOIN {transmute_participants} tp ON ts.shift_id = tp.shift_id '.
 					'LEFT JOIN {users} u ON tp.user_id = u.uid '.
-				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= %d ') .
+				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= :team_id ') .
 				'ORDER BY ts.start_date ASC, ts.title',
-				$team_id
+				array(':team_id' =>$team_id)
 			);
 			
 			if($is_multiple)
@@ -321,8 +315,8 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 			}
 			else
 			{
-				$team_result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = %d', $team_id);
-				$output[] = array(check_plain(db_fetch_object($team_result)->name));
+				$team_result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = :team_id', array(':team_id' =>$team_id))->fetchAssoc();
+				$output[] = array(check_plain($team_result['name']));
 			}
 			
 			$users_per_day = array();
@@ -332,14 +326,16 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 			//	Shift time
 			//		User
 			$output[] = array('Day', 'Shift', 'Shift Title', 'User', 'Name', 'Email');
-			while($data = db_fetch_array($result))
+			while($data = $result->fetchAssoc())
 			{
+				if($data['uid'] == NULL)
+					continue;
 				//Get a user object for username, email, and real name
 				$user = user_load($data['uid']);
-				profile_load_profile($user);
+				$full_name = field_get_items('user', $user, 'field_real_name');
 				
 				$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
-				$output[] = array(date('Y-m-d', strtotime($data['start_date'])), $shift_label, $data['title'], $user->name, $user->{profile_name}, $user->mail);
+				$output[] = array(date('Y-m-d', strtotime($data['start_date'])), $shift_label, $data['title'], $user->name, $full_name[0]['safe_value'], $user->mail);
 			}
 			
 			$output[] = array('');
@@ -351,9 +347,9 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 					'LEFT JOIN {transmute_shifts} ts ON tt.team_id = ts.team_id '.
 					'LEFT JOIN {transmute_participants} tp ON ts.shift_id = tp.shift_id '.
 					'LEFT JOIN {users} u ON tp.user_id = u.uid '.
-				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= %d ') .
+				'WHERE tt.team_id ' . ($is_multiple ? "IN ($mult_team_id)" : '= :team_id ') .
 				'GROUP BY u.uid',
-				$team_id
+				array(':team_id' =>$team_id)
 			);
 			
 			if($is_multiple)
@@ -362,21 +358,26 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 			}
 			else
 			{
-				$team_result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = %d', $team_id);
-				$output[] = array(check_plain(db_fetch_object($team_result)->name));
+				$team_result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = :team_id', array(':team_id' => $team_id))->fetchAssoc();
+				$output[] = array(check_plain($team_result['name']));
 			}
 			$output[] = array('User', 'Name', 'Email');
-			while($data = db_fetch_array($result))
+			while($data = $result->fetchAssoc())
 			{
 				//Get a user object for username, email, and real name
 				$user = user_load($data['uid']);
-				profile_load_profile($user);
+				$full_name = field_get_items('user', $user, 'field_real_name');
 				
 				if($user)
-					$output[] = array(check_plain($user->name), check_plain($user->{profile_name}), check_plain($user->mail));
+					$output[] = array(check_plain($user->name), $full_name[0]['safe_value'], check_plain($user->mail));
 			}
 			
 			$output[] = array('');
 			break;
 	}
+}
+
+function _transmute_over_zero($x)
+{
+	return($x > 0);
 }

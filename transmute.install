@@ -45,7 +45,7 @@ function transmute_schema() {
 				'description'	=> 'Foreign Key: The {transmute_teams}.team_id the shift is assigned to',
 			),
 			'start_date' => array(
-				'type'	=> 'datetime',
+				'mysql_type'	=> 'DATETIME',
 				'not null' => TRUE,
 	//			'default' => 0,
 				'description'	=> 'Date and time that the shift starts',
