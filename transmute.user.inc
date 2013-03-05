@@ -11,7 +11,7 @@ function transmute_volunteer_page()
 			"WHERE team_id = :team_id", array(':team_id' => $result['team_id']))->fetchAssoc();
 		
 		$full_shifts = $user_result['full_shifts'];
-		$total_shifts = isset($result->total_shifts) ? $result->total_shifts : 0;
+		$total_shifts = isset($result['total_shifts']) ? $result['total_shifts'] : 0;
 		
 		$form[$result['team_id']]['name'] = array('#markup' => l(check_plain($result['name']), 'volunteer/'. $result['team_id']));
 		$form[$result['team_id']]['shifts'] = array('#markup' => t(($total_shifts - $full_shifts) . '/' . $total_shifts . ' shifts open'));
