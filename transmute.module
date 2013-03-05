@@ -354,5 +354,5 @@ function transmute_redirect($path, $id)
 
 function transmute_views_api()
 {
-	return array('api' => 2);
+	return array('api' => 3.0);
 }
