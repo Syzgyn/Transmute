@@ -312,11 +312,11 @@ function transmute_block_view($delta='')
 	
 	while($shift = $result->fetchAssoc())
 	{
-		$start_time = date('g:ia', strtotime($shift['start_date']));
-		$end_time = date('g:ia', strtotime($shift['start_date']) + (60 * 60 * $shift['length']));
+		$start_time = date('g:ia', $shift['start_date']);
+		$end_time = date('g:ia', $shift['start_date'] + (60 * 60 * $shift['length']));
 		//$time_range = $start_time . ' - ' . $end_time;
 		$content['name'] = array('#value' => $shift['name']);
-		$content['date'] = array('#value' => date('D, M j', strtotime($shift['start_date'])));
+		$content['date'] = array('#value' => date('D, M j', $shift['start_date']));
 		$content['time'] = array('#value' => $start_time . ' - ' . $end_time);
 		$content['length'] = array('#value' => $shift['length']);
 		$content['cancel'] = array('#value' => l(t('Cancel'), 'volunteer/' . $shift['team_id']));

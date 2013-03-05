@@ -45,7 +45,7 @@ function transmute_admin_team($form, &$form_state, $team = NULL)
 {
 	if(!isset($team))
 	{
-		$team = array('name' => '', 'desc' => '');
+		$team = array('name' => '', 'description' => '');
 		drupal_set_title(t('Adding New Team'));
 	}
 	else
@@ -169,12 +169,14 @@ function transmute_admin_settings()
 		'#description'		=> t('The last day to have schedules for.'),
 		'#required'		=> TRUE,
 		);
+
+	$page_text = variable_get('transmute_page_text', array('value' => ''));
 		
 	$form['transmute_page_text'] = array(
 		'#type'			=> 'text_format',
 		'#base_type'		=> 'textarea',
 		'#title'		=> t('Main page text'),
-		'#default_value'	=> check_markup(variable_get('transmute_page_text', '')),
+		'#default_value'	=> $page_text['value'],
 		'#rows'			=> 20,
 		'#description'		=> t("Text to display on the front volunteer page."),
 	);
@@ -220,8 +222,8 @@ function transmute_admin_shift_list($form, &$form_state, $team = NULL)
 	while ($result = $query_result->fetchAssoc())
 	{
 		$form[$result['shift_id']]['title'] = array('#markup' => check_plain($result['title']));
-		$form[$result['shift_id']]['start_date'] = array('#markup' => date('D, M j', strtotime($result['start_date'])));
-		$form[$result['shift_id']]['start_time'] = array('#markup' => date('g:ia', strtotime($result['start_date'])));
+		$form[$result['shift_id']]['start_date'] = array('#markup' => date('D, M j', $result['start_date']));
+		$form[$result['shift_id']]['start_time'] = array('#markup' => date('g:ia', $result['start_date']));
 		$form[$result['shift_id']]['length'] = array('#markup' => $result['length']);
 		$form[$result['shift_id']]['participant_num'] = array('#markup' => $result['participant_num']);
 		$form[$result['shift_id']]['configure'] = array('#markup' => l(t('Edit Shift'), 'admin/settings/transmute/'. $result['team_id'] . '/shifts/' . $result['shift_id']));
@@ -287,7 +289,7 @@ function transmute_admin_shift($form, &$form_state, $shift)
 	
 	$start_date = variable_get('transmute_event_start_date', array('day' => 1, 'month' => 1, 'year' => 2013));
 	$start_time = strtotime($start_date['year'] . '-' . $start_date['month'] . '-' . $start_date['day']);
-	$end_date = variable_get('transmute_event_end_date', array('day' => 1, 'month' => 1, 'year' => 2013));
+	$end_date = variable_get('transmute_event_end_date', array('day' => 4, 'month' => 1, 'year' => 2013));
 	$end_time = strtotime($end_date['year'] . '-' . $end_date['month'] . '-' . $end_date['day']);
 	
 	$participant_list = '';
@@ -312,15 +314,18 @@ function transmute_admin_shift($form, &$form_state, $shift)
 		
 		//Get the list of participants
 		$query_result = db_query('SELECT name FROM {users} u LEFT JOIN {transmute_participants} tp ON tp.user_id = u.uid WHERE tp.shift_id = :shift_id', array(':shift_id' => $shift['shift_id']))->fetchAssoc();
-		foreach($query_result as $result)
+		if($query_result)
 		{
-			$participant_list .= $result . "\n";
+			foreach($query_result as $result)
+			{
+				$participant_list .= $result . "\n";
+			}
 		}
 	}
 	else	//New shift creation
 	{
 		$shift['title'] = "";
-		$shift['start_date'] = date('Y-m-d H:i:s', $start_time);
+		$shift['start_date'] = $start_time; 
 		$shift['length'] = variable_get('transmute_default_shift_length', 3);
 		$shift['participant_num'] = variable_get('transmute_default_shift_participants', 3);
 	}
@@ -347,10 +352,10 @@ function transmute_admin_shift($form, &$form_state, $shift)
 	$form['start_date'] = array(
 		'#type'				=> 'select',
 		'#title'			=> t('Start Date'),
-		'#default_value'	=> strtotime(substr($shift['start_date'], 0, 10)),
+		'#default_value'		=> $shift['start_date'] - ($shift['start_date'] + date('Z')) % (60 * 60 * 24),
 		'#options'			=> $date_choices,
 		'#multiple'			=> FALSE,
-		'#description'		=> t('The day this shift starts on.'),
+		'#description'			=> t('The day this shift starts on.'),
 		'#required'			=> TRUE,
 	);
 	
@@ -364,7 +369,7 @@ function transmute_admin_shift($form, &$form_state, $shift)
 	$form['custom_start_date'] = array(
 		'#type' 			=> 'textfield',
 		'#title' 			=> t('Custom Start Date'),
-		'#default_value'	=> date('d-m-Y', $form['start_date']['#default_value']),
+		'#default_value'	=> date('Y-m-d', $form['start_date']['#default_value']),
 		'#description' 		=> t('Format: YYYY-MM-DD'),
 		'#size'				=> 20,
 		'#max_length'		=> 10,
@@ -373,7 +378,7 @@ function transmute_admin_shift($form, &$form_state, $shift)
 	$form['start_time'] = array(
 		'#type' 			=> 'textfield',
 		'#title' 			=> t('Start Time'),
-		'#default_value'	=> date('g:ia', strtotime($shift['start_date'])),
+		'#default_value'	=> date('g:ia', $shift['start_date']),
 		'#description' 		=> t('The time the shift starts at.  Use format HH:MM am/pm.  You can change the time manually or use the dropdown selection.'),
 		'#required' 		=> TRUE,
 		'#size'				=> 7,
@@ -462,14 +467,14 @@ function transmute_admin_shift_submit($form, &$form_state)
 {
 	$title = $form_state['values']['title'];
 	$shift_id = isset($form_state['values']['shift_id']) ? $form_state['values']['shift_id'] : NULL;
-	$time = $form_state['values']['start_time'];
-	
+	$time = strtotime('1970-01-01' . $form_state['values']['start_time'] . ' GMT' ); //set to 1970 so we just get the time in seconds
+
 	if($form_state['values']['use_custom_date'])
 		$date = strtotime($form_state['values']['custom_start_date']);
 	else
 		$date = $form_state['values']['start_date'];
 	
-	$final_date = date('Y-m-d H:i:s', strtotime(date('Y-m-d', $date) . ' ' . $time));
+	$final_date = $date + $time; //date('Y-m-d H:i:s', strtotime(date('Y-m-d', $date) . ' ' . $time));
 	
 	if(isset($shift_id)) //Existing shift getting updated
 	{
@@ -482,7 +487,7 @@ function transmute_admin_shift_submit($form, &$form_state)
 			))
 			->condition('shift_id', $shift_id, '=')
 			->execute();
-		drupal_set_message(t('Shift updated. @date', array('@date' => $final_date)));
+		drupal_set_message(t('Shift updated. @date', array('@date' => date('D, M j, Y g:iA', $final_date))));
 		
 		//Modify the participant list if the associated box is checked
 		if($form_state['values']['modify_participant_list'] == 1)
@@ -552,9 +557,9 @@ function transmute_delete_confirm($form, &$form_state, $obj_data, $type)
 				array(':shift_id' => $obj_data[$type . '_id']));
 			$shift = $result->fetchAssoc();
 			
-			$start_time = date('g:ia', strtotime($shift['start_date']));
-			$end_time = date('g:ia', strtotime($shift['start_date']) + (60 * 60 * $shift['length']));
-			$shift_date = date('D, M j', strtotime($shift['start_date']));
+			$start_time = date('g:ia', $shift['start_date']);
+			$end_time = date('g:ia', $shift['start_date'] + (60 * 60 * $shift['length']));
+			$shift_date = date('D, M j', $shift['start_date']);
 			
 			$confirm_text = t(
 				'Are you sure you want to delete %name shift on %date from %time?',

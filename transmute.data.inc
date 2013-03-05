@@ -136,13 +136,13 @@ function _transmute_query_participant($view_type, $team_id)
 				$user = user_load($data['uid']);
 				$full_name = field_get_items('user', $user, 'field_real_name');
 				
-				$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
-				$schedule[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['name']][$data['title']][] = array(
+				$shift_label = date('g:ia', $data['start_date']) . ' - ' . date('g:ia', $data['start_date'] + $data['length'] * 60 * 60);
+				$schedule[date('Y-m-d', $data['start_date'])][$shift_label][$data['name']][$data['title']][] = array(
 					check_plain($user->name),
 					$full_name[0]['safe_value'],
 					check_plain($user->mail),
 				);
-				$k = date('Y-m-d', strtotime($data['start_date']));
+				$k = date('Y-m-d', $data['start_date']);
 				if(!isset($users_per_day[$k])) {$users_per_day[$k] = 0;}
 				if(!isset($users_per_shift[$k])) {$users_per_shift[$k] = array();}
 				if(!isset($users_per_shift[$k][$shift_label])) {$users_per_shift[$k][$shift_label] = 0;}
@@ -150,9 +150,9 @@ function _transmute_query_participant($view_type, $team_id)
 				if(!isset($users_per_team[$k][$shift_label])) {$users_per_team[$k][$shift_label] = array();}
 				if(!isset($users_per_team[$k][$shift_label][$data['name']])) {$users_per_team[$k][$shift_label][$data['name']] = 0;}
 				//These are used to track the number of users per each grouping, since we can't use count() in the middle of the loop of each grouping.
-				$users_per_day[date('Y-m-d', strtotime($data['start_date']))]++;
-				$users_per_shift[date('Y-m-d', strtotime($data['start_date']))][$shift_label]++;
-				$users_per_team[date('Y-m-d', strtotime($data['start_date']))][$shift_label][$data['name']]++;
+				$users_per_day[$k]++;
+				$users_per_shift[k][$shift_label]++;
+				$users_per_team[$k][$shift_label][$data['name']]++;
 			}
 			
 			//These loops add the appropriate number for rowspan for each element to have, working outwards.
@@ -334,8 +334,8 @@ function _transmute_get_csv(&$output, $view_type, $team_id)
 				$user = user_load($data['uid']);
 				$full_name = field_get_items('user', $user, 'field_real_name');
 				
-				$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
-				$output[] = array(date('Y-m-d', strtotime($data['start_date'])), $shift_label, $data['title'], $user->name, $full_name[0]['safe_value'], $user->mail);
+				$shift_label = date('g:ia', $data['start_date']) . ' - ' . date('g:ia', $data['start_date'] + $data['length'] * 60 * 60);
+				$output[] = array(date('Y-m-d', $data['start_date']), $shift_label, $data['title'], $user->name, $full_name[0]['safe_value'], $user->mail);
 			}
 			
 			$output[] = array('');

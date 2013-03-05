@@ -100,19 +100,19 @@ function transmute_volunteer_shift_page($form, &$form_state, $team)
 	
 	while ($result = $query_result->fetchAssoc())
 	{
-		$start_time = date('g:ia', strtotime($result['start_date']));
-		$end_time = date('g:ia', strtotime($result['start_date']) + (60 * 60 * $result['length']));
+		$start_time = date('g:ia', $result['start_date']);
+		$end_time = date('g:ia', $result['start_date'] + (60 * 60 * $result['length']));
 		$submit_text = isset($result['user_id']) ? 'Cancel' : 'Sign Up';
 		
 		$form[$result['shift_id']]['title']		  = array('#markup' => check_plain($result['title']));		
-		$form[$result['shift_id']]['start_date'] = array('#markup' => date('D, M j', strtotime($result['start_date'])));
+		$form[$result['shift_id']]['start_date'] = array('#markup' => date('D, M j', $result['start_date']));
 		$form[$result['shift_id']]['time_range'] = array('#markup' => check_plain($start_time . ' - ' . $end_time . ' (' . $result['length'] . ' ' . transmute_plural($result['length'], 'hour') . ')'));
 		//$form[$result['shift_id']]['length'] = array('#markup' => check_plain($result['length']));
 		$form[$result['shift_id']]['shift_info'] = array('#markup' => check_plain(($result['participant_num']-$result['num_signed_up']) . '/' . $result['participant_num']));
 		$form[$result['shift_id']]['sign_up'] = array(
 			'#type' => 'submit', 
 			'#name' => check_plain($result['shift_id']),
-			'#start_date'	=> date('D, M j', strtotime($result['start_date'])),
+			'#start_date'	=> date('D, M j', $result['start_date']),
 			'#time_range'	=> check_plain($start_time . ' - ' . $end_time),
 			'#title'		=> check_plain($result['name']),
 		);
@@ -266,10 +266,6 @@ function transmute_volunteer_shift_page_submit($form, &$form_state)
 
 function transmute_volunteer_schedule_page($team)
 {
-	//var_dump(func_get_args());
-	$a = array();
-	//return $a;
-	
 	//global $user;
 	
 	if(empty($team))
@@ -311,11 +307,19 @@ function transmute_volunteer_schedule_page($team)
 	while($data = $result->fetchAssoc())
 	{
 		//Get a user object for username, email, and real name
-		$date = date('D, M j', strtotime($data['start_date']));
-		$user = user_load($data['uid']);
-		$full_name = field_get_items('user', $user, 'field_real_name');
+		$date = date('D, M j', $data['start_date']);
+		if($data['uid'])
+		{
+			$user = user_load($data['uid']);
+			$full_name = field_get_items('user', $user, 'field_real_name');
+		}
+		else
+		{
+			$user = (object) array('name' => '');
+			$full_name = '';
+		}
 		
-		$shift_label = date('g:ia', strtotime($data['start_date'])) . ' - ' . date('g:ia', strtotime($data['start_date']) + $data['length'] * 60 * 60);
+		$shift_label = date('g:ia', $data['start_date']) . ' - ' . date('g:ia', $data['start_date'] + $data['length'] * 60 * 60);
 		$schedule[$date][$shift_label][$data['name']][$data['title']][] = array(
 			check_plain($user->name),
 			//check_plain($user->{profile_name}),
