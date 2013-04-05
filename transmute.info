@@ -2,4 +2,4 @@ name = Transmute
 description = Module to manage volunteer efforts for Alchemy LLC events
 core = 7.x
 package = Volunteer
-version = "7.x-0.1"
+version = "7.x-0.2"

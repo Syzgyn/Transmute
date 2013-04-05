@@ -43,9 +43,9 @@ function theme_transmute_admin_list($variables)
 
 function transmute_admin_team($form, &$form_state, $team = NULL)
 {
-	if(!isset($team))
+	if(!isset($team) || !isset($team['team_id']))
 	{
-		$team = array('name' => '', 'description' => '');
+		$team = array('name' => '', 'description' => '', 'contact' => '');
 		drupal_set_title(t('Adding New Team'));
 	}
 	else
@@ -66,6 +66,13 @@ function transmute_admin_team($form, &$form_state, $team = NULL)
 		'#required' 		=> TRUE,
 	);
 	
+	$form['contact'] = array(
+		'#type'                 => 'textfield',
+                '#title'                => t('Updates contact addresse(s)'),
+		'#default_value'        => check_plain($team['contact']),
+                '#description'          => t('Insert any email addresses to get daily emails whenever there are new volunteer signups.  Separate emails by commas.  Emails won\'t be displayed anywhere. NOT YET WORKING'),
+        );
+
 	$form['desc'] = array(
 		'#type'			=> 'text_format',
 		'#base_type'		=> 'textarea',
@@ -74,8 +81,7 @@ function transmute_admin_team($form, &$form_state, $team = NULL)
 		'#description'		=> t('Describe what volunteering for this team involves.'),
 		'#required'		=> TRUE,
 	);
-	
-	
+
 	$form['submit'] = array(
 		'#type' 		=> 'submit', 
 		'#value' 		=> t('Save Team')
@@ -108,6 +114,7 @@ function transmute_admin_team_submit($form, &$form_state)
 			->fields(array(
 				'name' => $form_state['values']['name'],
 				'description' => $form_state['values']['desc']['value'],
+				'contact' => $form_state['values']['contact'],
 			))
 			->condition('team_id', $team_id, '=')
 			->execute();
@@ -120,6 +127,7 @@ function transmute_admin_team_submit($form, &$form_state)
 			->fields(array(
 				'name' => $form_state['values']['name'],
 				'description' => $form_state['values']['desc']['value'],
+				'contact' => $form_state['values']['contact'],
 			))
 			->execute();
 		drupal_set_message(t('%team created.', array('%team' => $form_state['values']['name'])));
