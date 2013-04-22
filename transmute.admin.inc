@@ -106,7 +106,7 @@ function transmute_admin_team_validate($form, &$form_state)
 
 function transmute_admin_team_submit($form, &$form_state)
 {
-	$team_id = $form_state['values']['team_id'] || NULL;
+	$team_id = (isset($form_state['values']['team_id'])?$form_state['values']['team_id']:NULL);
 	
 	if(isset($team_id))	//Existing team getting updated
 	{
@@ -556,11 +556,16 @@ function transmute_delete_confirm($form, &$form_state, $obj_data, $type)
 		case 'team':
 			$result = db_query('SELECT name FROM {transmute_teams} WHERE team_id = :team_id',
 				array(':team_id' => $obj_data[$type . '_id']))->fetchAssoc();
-			$confirm_text = t('Are you sure you want to delete %name?', array('%name' => $result->name));
+			$confirm_text = t('Are you sure you want to delete %name?', array('%name' => $result['name']));
 			$additional_text = t('This will delete all associated shift and participant data.<br>This action cannot be undone.');
+			$form['team_id'] = array(
+				'#type' => 'value',
+				'#value' => $obj_data[$type . '_id'],
+			);			
+
 			break;
 		case 'shift':
-			$result = db_query('SELECT tt.name AS name, ts.start_date AS start_date, ts.length AS length '.
+			$result = db_query('SELECT tt.team_id AS team_id, tt.name AS name, ts.start_date AS start_date, ts.length AS length '.
 				'FROM {transmute_shifts} ts LEFT JOIN {transmute_teams} tt ON ts.team_id = tt.team_id WHERE ts.shift_id = :shift_id',
 				array(':shift_id' => $obj_data[$type . '_id']));
 			$shift = $result->fetchAssoc();
@@ -575,6 +580,11 @@ function transmute_delete_confirm($form, &$form_state, $obj_data, $type)
 			);
 			$additional_text = t('This will delete all participant records for this shift.<br>This action cannot be undone.');
 			
+
+			$form['team_id'] = array(
+				'#type' => 'value',
+				'#value' => $shift['team_id'],
+			);			
 			break;
 	}
 
@@ -604,7 +614,7 @@ function transmute_delete_confirm_submit($form, &$form_state)
 					'LEFT JOIN {transmute_participants} tp '.
 						'ON tp.shift_id = ts.shift_id '.
 					'WHERE tt.team_id = :team_id',
-					array(':team_id' => $form_state['values']['element_id']['team_id'])
+					array(':team_id' => $form_state['values']['element_id'])
 				);
 				
 				$redirect = 'admin/settings/transmute';
@@ -615,10 +625,10 @@ function transmute_delete_confirm_submit($form, &$form_state)
 					'LEFT JOIN {transmute_participants} tp '.
 						'ON tp.shift_id = ts.shift_id '.
 					'WHERE ts.shift_id = :shift_id',
-					array(':shift_id' => $form_state['values']['element_id']['shift_id'])
+					array(':shift_id' => $form_state['values']['element_id'])
 				);
 				
-				$redirect = 'admin/settings/transmute/' . $form_state['values']['element_id']['team_id'] . '/shifts';
+				$redirect = 'admin/settings/transmute/' . $form_state['values']['team_id'] . '/shifts';
 				break;
 		}
 	}

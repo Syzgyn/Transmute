@@ -91,7 +91,7 @@ function transmute_volunteer_shift_page($form, &$form_state, $team)
 		"ON u.shift_id = ts.shift_id ".
 		"WHERE ts.team_id = :team_id ".
 		"GROUP BY ts.shift_id ".
-		"ORDER BY start_date ASC",
+		"ORDER BY start_date ASC, ts.title ASC",
 		array(
 			':uid' => $user->uid, 
 			':team_id' => $team['team_id']
