@@ -2,7 +2,7 @@
 function transmute_volunteer_page()
 {
 	$query_result = db_query("SELECT name, {transmute_teams}.team_id, SUM(participant_num) AS total_shifts ".
-		"FROM {transmute_teams} LEFT JOIN {transmute_shifts} ON {transmute_teams}.team_id = {transmute_shifts}.team_id GROUP BY {transmute_teams}.team_id");
+		"FROM {transmute_teams} LEFT JOIN {transmute_shifts} ON {transmute_teams}.team_id = {transmute_shifts}.team_id GROUP BY {transmute_teams}.team_id ORDER BY {transmute_teams}.name ASC");
 		
 	while ($result = $query_result->fetchAssoc())
 	{
@@ -66,6 +66,7 @@ function transmute_volunteer_shift_page($form, &$form_state, $team)
 		return drupal_not_found();
 	
 	$form['description'] = array('#markup' => $team['description']);
+	$form['user_shifts'] = array();
 	
 	drupal_set_title(t($team['name'] . ' Shifts'));
 	$query_result = db_query("SELECT ".
@@ -124,34 +125,37 @@ function transmute_volunteer_shift_page($form, &$form_state, $team)
 				'onclick' => 'return confirm("' . t('Are you sure you want to remove yourself from this volunteer shift?') . '");',
 				'class' => array('cancel-button'),
 			);
+			$form['user_shifts'][$result['shift_id']] = $form[$result['shift_id']];
+			unset($form[$result['shift_id']]);
 		}
 		elseif($result['participant_num'] > $result['num_signed_up'])
 		{
 			//Not full, show signup button
 			$form[$result['shift_id']]['sign_up']['#value'] = t('Sign Up');
+			if(!$logged_in)
+			{
+				$form[$result['shift_id']]['sign_up']['#type'] = 'markup';
+				$form[$result['shift_id']]['sign_up']['#markup'] = $form[$result['shift_id']]['sign_up']['#value'];
+			}
 		}
 		else
 		{
 			//Full, don't show any button
-			$form[$result['shift_id']]['sign_up']['#type'] = 'markup';
-			$form[$result['shift_id']]['sign_up']['#markup'] = 'FULL';
+			unset($form[$result['shift_id']]);
+			//$form[$result['shift_id']]['sign_up']['#type'] = 'markup';
+			//$form[$result['shift_id']]['sign_up']['#markup'] = 'FULL';
 		}
 		
-		if(!$logged_in)
-			$form[$result['shift_id']]['sign_up']['#type'] = 'markup';
-			$form[$result['shift_id']]['sign_up']['#markup'] = $form[$result['shift_id']]['sign_up']['#value'];
 	}
 	
 	return $form;
 } //function transmute_volunteer_shift_page
 
-function theme_transmute_volunteer_shift_page($variables)
+function _transmute_render_signups(&$form)
 {
-	$form = $variables['form'];
-	$rows = array();
 	$previous_date = "";
 	$spacer = array('data' => '<hr>', 'colspan' => 5);
-	$output = '';
+	$output = array();
 	
 	foreach (element_children($form) as $item)
 	{
@@ -167,7 +171,7 @@ function theme_transmute_volunteer_shift_page($variables)
 			$previous_date = $row['start_date']['#markup'];
 		}
 			
-		$rows[] = array(
+		$output[] = array(
 		//$rows[$row['start_date']['#value']][] = array(
 			drupal_render($row['start_date']),
 			drupal_render($row['time_range']),
@@ -178,11 +182,25 @@ function theme_transmute_volunteer_shift_page($variables)
 		);
 		unset($form[$item]);
 	}
-	
-	$output .= '<h3>'. t('Description'). ' </h3>';
-	$output .= '<p>' . drupal_render($form['description']) . '</p>';
-	$output .= '<h3>' . t('Available Shifts'). '</h3>';
 
+	return $output;
+}
+
+function theme_transmute_volunteer_shift_page($variables)
+{
+	$form['form'] = $variables['form'];
+	if(isset($form['form']['user_shifts']))
+	{
+		$form['user'] = $form['form']['user_shifts'];
+		unset($form['form']['user_shifts']);
+	}
+	$rows = array();
+	$output = '';
+	
+	foreach($form as $k => $f)
+	{	
+		$rows[$k] = _transmute_render_signups($form[$k]);	
+	}	
 	$header = array(
 		t('Day'), 
 		t('Time'), 
@@ -191,13 +209,30 @@ function theme_transmute_volunteer_shift_page($variables)
 		t('<abbr title="Remaining Shifts/Total Shifts">Rem/Tot</abbr>'), 
 		t('Sign Up')
 	);
+
+	$output .= '<h3>'. t('Description'). ' </h3>';
+	$output .= drupal_render($form['form']['description']);
+	if(!empty($rows['user']))
+	{
+		$output .= '<h3>' . t('Your Shifts') . '</h3>';
+		$output .= theme('table', array('header' => $header, 'rows' => $rows['user']));
+		$output .= '<br>';
+	}
+	$output .= '<h3>' . t('Available Shifts'). '</h3>';
+
 	/*
 	foreach($rows as $day)
 	{
 		$output .= theme('table', $header, $day);
 	}*/
-	$output .= theme('table', array('header' => $header, 'rows' => $rows));
-	$output .= drupal_render_children($form);
+	$output .= theme('table', array('header' => $header, 'rows' => $rows['form']));
+	
+	if(empty($rows['form']))
+	{
+		$form['form']['is_empty'] = array('#markup' => "There are no available shifts!");
+	}
+
+	$output .= drupal_render_children($form['form']);
 
 	return $output;
 } //function theme_transmute_volunteer_shift_page
@@ -214,7 +249,7 @@ function transmute_volunteer_shift_page_validate($form, &$form_state)
 	if($full_name == NULL)
 		form_set_error('no_name', t('Sorry, you need to have your name in your profile in order to sign up to volunteer.  '.
 			'This is so we know who you are when we contact you or put you on the schedule.  '.
-			l(t('You can update your profile here'), 'user/' . $user->uid . '/edit/Personal Information')
+			l(t('You can update your profile here'), 'user/' . $user->uid . '/edit/')
 		));
 }
 
