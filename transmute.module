@@ -277,14 +277,12 @@ function transmute_block_info(){
 	$block = array();
 	$block['transmute_user_info'] = array(
 		'info' 			=> t('Volunteer user data'),
-		'cache'			=> 'BLOCK_CACHE_PER_PAGE',
-		'status'		=> 1,
-		'region'		=> 'content_bottom',
-		'visibility'	=> 2,
-		'pages'			=> '<?php' . 
-					'	global $user;'.
-					'	return (arg(0) == \'user\' && ($user->uid == arg(1) || array_key_exists(3, $user->roles)) && arg(2) == \'\')'.
-					'?>',
+		'cache'			=> DRUPAL_NO_CACHE,
+		'visibility'		=> BLOCK_VISIBILITY_LISTED,
+		'pages'			=> 'user/*/',
+	//	'pages'			=> '<?php' . 
+	//				'	global $user;'.
+	//				'	return (arg(0) == \'user\' && ($user->uid == arg(1) || array_key_exists(3, $user->roles)) && arg(2) == \'\')'.
 	);
 	return $block;
 }
@@ -315,11 +313,11 @@ function transmute_block_view($delta='')
 		$start_time = date('g:ia', $shift['start_date']);
 		$end_time = date('g:ia', $shift['start_date'] + (60 * 60 * $shift['length']));
 		//$time_range = $start_time . ' - ' . $end_time;
-		$content['name'] = array('#value' => $shift['name']);
-		$content['date'] = array('#value' => date('D, M j', $shift['start_date']));
-		$content['time'] = array('#value' => $start_time . ' - ' . $end_time);
-		$content['length'] = array('#value' => $shift['length']);
-		$content['cancel'] = array('#value' => l(t('Cancel'), 'volunteer/' . $shift['team_id']));
+		$content['name'] = array('#markup' => $shift['name']);
+		$content['date'] = array('#markup' => date('D, M j', $shift['start_date']));
+		$content['time'] = array('#markup' => $start_time . ' - ' . $end_time);
+		$content['length'] = array('#markup' => $shift['length']);
+		$content['cancel'] = array('#markup' => l(t('Cancel'), 'volunteer/' . $shift['team_id']));
 		
 		$rows[] = array(
 			drupal_render($content['name']),
@@ -329,11 +327,14 @@ function transmute_block_view($delta='')
 			drupal_render($content['cancel']),
 		);
 	}
+
+	$block = array();
+	$block['subject'] = t('Volunteer Info');
+
 	if(!empty($rows))
 	{
 		$header = array(t('Team'), t('Day'), t('Time'), t('Length'), t('Cancel'));
-		$block['content'] = theme('table', $header, $rows);
-		$block['subject'] = t('Volunteer Info');
+		$block['content'] = theme('table', array('header' => $header, 'rows' => $rows));
 	}
 	
 	return $block;

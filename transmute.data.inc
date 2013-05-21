@@ -151,7 +151,7 @@ function _transmute_query_participant($view_type, $team_id)
 				if(!isset($users_per_team[$k][$shift_label][$data['name']])) {$users_per_team[$k][$shift_label][$data['name']] = 0;}
 				//These are used to track the number of users per each grouping, since we can't use count() in the middle of the loop of each grouping.
 				$users_per_day[$k]++;
-				$users_per_shift[k][$shift_label]++;
+				$users_per_shift[$k][$shift_label]++;
 				$users_per_team[$k][$shift_label][$data['name']]++;
 			}
 			
