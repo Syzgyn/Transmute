@@ -321,12 +321,12 @@ function transmute_admin_shift($form, &$form_state, $shift)
 		);
 		
 		//Get the list of participants
-		$query_result = db_query('SELECT name FROM {users} u LEFT JOIN {transmute_participants} tp ON tp.user_id = u.uid WHERE tp.shift_id = :shift_id', array(':shift_id' => $shift['shift_id']))->fetchAssoc();
+		$query_result = db_query('SELECT name FROM {users} u LEFT JOIN {transmute_participants} tp ON tp.user_id = u.uid WHERE tp.shift_id = :shift_id', array(':shift_id' => $shift['shift_id']));
 		if($query_result)
 		{
-			foreach($query_result as $result)
+			while($result = $query_result->fetchAssoc())
 			{
-				$participant_list .= $result . "\n";
+				$participant_list .= $result['name'] . "\n";
 			}
 		}
 	}
